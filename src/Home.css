@@ -1,75 +1,155 @@
-/* Overall Page Styling */
+/* Ensure HTML and Body take full height */
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: linear-gradient(-45deg, #1a1a1a, #000000, #E50914, #1a1a1a);
+    background-size: 400% 400%;
+    animation: gradientShift 10s ease infinite;
+}
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Home Container */
 .home-container {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    height: 100vh;
-    background: #1a1a1a;
+    justify-content: flex-start; /* Align content to the top */
+    min-height: 100vh; /* Full screen height */
+    background: transparent; /* Remove background to let body gradient show */
     color: white;
     font-family: 'Poppins', sans-serif;
+    padding: 0;
+    margin: 0;
 }
 
-/* Header with Logout Button */
+/* Header with Profile Dropdown */
 header {
-    position: absolute;
-    top: 0;
     width: 100%;
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 20px;
-    background: #2c2c2c; /* Solid dark background */
+    background: rgba(44, 44, 44, 0.9); /* Dark Grey with transparency */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    position: fixed;
+    top: 0;
+    z-index: 1000;
 }
 
-/* Logout Button (Top Right) */
-.logout-btn {
-    background: red;
+header h1 {
+    font-size: 24px;
+    font-weight: bold;
+    color: #E50914; /* Red */
+    margin: 0;
+}
+
+/* Profile Circle */
+.profile-circle {
+    width: 40px;
+    height: 40px;
+    background: #E50914; /* Red */
     color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 5px;
-    font-size: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: bold;
     cursor: pointer;
     transition: all 0.3s ease;
 }
 
-.logout-btn:hover {
-    background: darkred;
+.profile-circle:hover {
+    background: #b00610; /* Darker Red */
+    transform: scale(1.1);
 }
 
-/* Welcome Message & Input Section */
-.content {
-    text-align: center;
-    background: #252525;
-    padding: 30px;
-    border-radius: 10px;
-    box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
-}
-
-/* Input Fields */
-.content input {
-    width: 90%;
-    padding: 10px;
-    margin: 10px 0;
+/* Dropdown Menu */
+.dropdown-menu {
+    position: absolute;
+    top: 60px;
+    right: 20px;
+    background: #2c2c2c; /* Dark Grey */
     border-radius: 5px;
-    border: none;
-    background: #333;
-    color: white;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px;
+    z-index: 1000;
 }
 
-/* Submit Button */
-.content button {
-    width: 100%;
-    padding: 10px;
-    background: red;
+.dropdown-menu button {
+    background: #444; /* Dark Grey */
     color: white;
     border: none;
+    padding: 10px;
     border-radius: 5px;
     cursor: pointer;
-    transition: 0.3s;
+    font-size: 14px;
+    transition: all 0.3s ease;
 }
 
-.content button:hover {
-    background: darkred;
+.dropdown-menu button:hover {
+    background: #E50914; /* Red */
+}
+
+/* Content Section */
+.content {
+    text-align: center;
+    background: rgba(37, 37, 37, 0.9); /* Dark Grey with transparency */
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+    width: 90%;
+    max-width: 800px;
+    margin-top: 100px; /* Space for the fixed header */
+    margin-bottom: 20px;
+}
+
+/* Items List */
+.items-list {
+    margin-top: 20px;
+}
+
+.items-list h3 {
+    font-size: 20px;
+    margin-bottom: 15px;
+    color: #E50914; /* Red */
+}
+
+.item-card {
+    background: #333; /* Dark Grey */
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    text-align: left;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.item-card h4 {
+    font-size: 18px;
+    margin-bottom: 10px;
+    color: #E50914; /* Red */
+}
+
+.item-card p {
+    font-size: 14px;
+    margin: 5px 0;
+    color: #ddd; /* Light Grey */
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .content {
+        padding: 20px;
+        margin-top: 80px; /* Adjust for smaller screens */
+    }
 }
