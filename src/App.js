@@ -2,7 +2,9 @@ import { BrowserRouter as Router, Route, Routes, Navigate } from "react-router-d
 import { useEffect, useState } from "react";
 import { auth } from "./firebase";
 import Home from "./Home";
-import ReportLostItem from "./ReportLostItem"; // Import the ReportLostItem component
+import ReportLostItem from "./ReportLostItem";
+import ReportFoundItem from "./ReportFoundItem";
+import Settings from "./Settings"; // Import the new Settings component
 import Auth from "./Auth";
 
 function App() {
@@ -25,7 +27,9 @@ function App() {
             <Routes>
                 <Route path="/" element={user ? <Navigate to="/home" replace /> : <Auth />} />
                 <Route path="/home" element={user ? <Home /> : <Navigate to="/" replace />} />
-                <Route path="/report-lost" element={user ? <ReportLostItem /> : <Navigate to="/" replace />} /> {/* Add this route */}
+                <Route path="/report-lost" element={user ? <ReportLostItem /> : <Navigate to="/" replace />} />
+                <Route path="/report-found" element={user ? <ReportFoundItem /> : <Navigate to="/" replace />} />
+                <Route path="/settings" element={user ? <Settings /> : <Navigate to="/" replace />} /> {/* New route */}
             </Routes>
         </Router>
     );

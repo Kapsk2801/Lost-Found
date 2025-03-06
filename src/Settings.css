@@ -1,0 +1,240 @@
+/* Container Styling */
+.settings-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 100vh;
+    color: #fff;
+    font-family: 'Poppins', sans-serif;
+    padding: 0;
+    margin: 0;
+    overflow-y: auto;
+}
+
+/* Content Section */
+.settings-content {
+    text-align: center;
+    background: rgba(37, 37, 37, 0.9); /* Semi-transparent dark background */
+    padding: 40px; /* Increased padding for more space */
+    border-radius: 15px;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+    width: 95%; /* Wider container */
+    max-width: 1400px; /* Increased max-width for wider screens */
+    margin-top: 100px; /* Space for the fixed header */
+    margin-bottom: 20px;
+    overflow-y: auto;
+    max-height: calc(100vh - 160px);
+    animation: fadeInUp 0.8s ease-out;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Themed Scrollbar */
+.settings-content::-webkit-scrollbar {
+    width: 10px; /* Width of the scrollbar */
+}
+
+.settings-content::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1); /* Semi-transparent track */
+    border-radius: 5px;
+}
+
+.settings-content::-webkit-scrollbar-thumb {
+    background: #E50914; /* Red scrollbar thumb */
+    border-radius: 5px;
+}
+
+.settings-content::-webkit-scrollbar-thumb:hover {
+    background: #b00610; /* Darker red on hover */
+}
+
+/* Dark Mode Switch */
+.dark-mode-switch {
+    width: 60px;
+    height: 30px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.dark-mode-switch:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.slider {
+    width: 26px;
+    height: 26px;
+    background: #E50914; /* Red */
+    border-radius: 50%;
+    position: absolute;
+    top: 2px;
+    transition: transform 0.3s ease, background 0.3s ease;
+}
+
+.slider.on {
+    transform: translateX(32px); /* Move to the right for "On" state */
+    background: white; /* White dot */
+}
+
+.slider.off {
+    transform: translateX(2px); /* Move to the left for "Off" state */
+    background: #E50914; /* Red dot */
+}
+
+/* Dark Mode Styles */
+body.dark-mode {
+    background: #121212; /* Dark background */
+    color: #ffffff; /* Light text */
+}
+
+body.dark-mode .settings-content {
+    background: rgba(37, 37, 37, 0.9); /* Darker semi-transparent background */
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .settings-option {
+    background: rgba(255, 255, 255, 0.1); /* Semi-transparent white */
+}
+
+body.dark-mode .option-header:hover {
+    background: rgba(255, 255, 255, 0.2); /* Lighten background on hover */
+}
+
+body.dark-mode .option-content {
+    background: rgba(255, 255, 255, 0.05); /* Semi-transparent white */
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .option-content p {
+    color: #ddd; /* Light grey */
+}
+
+body.dark-mode .option-content button {
+    background: #E50914; /* Red */
+    color: white;
+}
+
+body.dark-mode .option-content button:hover {
+    background: #b00610; /* Darker red */
+}
+
+/* Settings Options */
+.settings-options {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.settings-group {
+    margin-bottom: 20px;
+}
+
+.group-title {
+    font-size: 18px;
+    color: #E50914; /* Red */
+    margin-bottom: 10px;
+    text-align: left;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.settings-option {
+    background: rgba(255, 255, 255, 0.1); /* Semi-transparent white */
+    border-radius: 15px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.settings-option:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(229, 9, 20, 0.5); /* Red glow on hover */
+}
+
+.option-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.option-header:hover {
+    background: rgba(255, 255, 255, 0.2); /* Lighten background on hover */
+}
+
+.option-header h4 {
+    font-size: 16px;
+    color: #E50914; /* Red */
+    margin: 0;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Chevron Icon for Expand/Collapse */
+.chevron-icon {
+    width: 20px;
+    height: 20px;
+    fill: #E50914; /* Red */
+    transition: transform 0.3s ease;
+}
+
+.settings-option.expanded .chevron-icon {
+    transform: rotate(180deg); /* Rotate chevron when expanded */
+}
+
+.option-content {
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.05); /* Semi-transparent white */
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.option-content p {
+    font-size: 14px;
+    color: #ddd; /* Light grey */
+    margin-bottom: 15px;
+}
+
+.option-content button {
+    padding: 10px 20px;
+    background: #E50914; /* Red */
+    color: white;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.option-content button:hover {
+    background: #b00610; /* Darker red */
+    transform: scale(1.05); /* Slightly enlarge on hover */
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .settings-content {
+        padding: 20px;
+        margin-top: 80px; /* Adjust for smaller screens */
+    }
+
+    .option-header h4 {
+        font-size: 14px; /* Smaller font for mobile */
+    }
+
+    .option-content button {
+        font-size: 14px; /* Smaller button for mobile */
+    }
+}

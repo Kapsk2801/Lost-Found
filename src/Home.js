@@ -57,6 +57,7 @@ const Home = () => {
                         <div className="dropdown-menu">
                             <button onClick={() => navigate("/report-lost")}>Report Lost Item</button>
                             <button onClick={() => navigate("/report-found")}>Report Found Item</button>
+                            <button onClick={() => navigate("/settings")}>Settings</button> {/* Add Settings option */}
                             <button onClick={handleLogout}>Logout</button>
                         </div>
                     )}

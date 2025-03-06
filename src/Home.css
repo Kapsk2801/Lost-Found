@@ -87,7 +87,7 @@ header h1 {
 }
 
 .dropdown-menu button {
-    background: #444; /* Dark Grey */
+    background: #444;
     color: white;
     border: none;
     padding: 10px;
@@ -95,10 +95,11 @@ header h1 {
     cursor: pointer;
     font-size: 14px;
     transition: all 0.3s ease;
+    text-align: left;
 }
 
 .dropdown-menu button:hover {
-    background: #E50914; /* Red */
+    background: #E50914;
 }
 
 /* Content Section */
