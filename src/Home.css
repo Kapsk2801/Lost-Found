@@ -102,16 +102,16 @@ header h1 {
     background: #E50914;
 }
 
-/* Content Section */
+
 .content {
     text-align: center;
-    background: rgba(37, 37, 37, 0.9); /* Dark Grey with transparency */
+    background: rgba(37, 37, 37, 0.9); 
     padding: 30px;
     border-radius: 15px;
     box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
     width: 90%;
     max-width: 800px;
-    margin-top: 100px; /* Space for the fixed header */
+    margin-top: 100px; 
     margin-bottom: 20px;
 }
 
@@ -123,11 +123,11 @@ header h1 {
 .items-list h3 {
     font-size: 20px;
     margin-bottom: 15px;
-    color: #E50914; /* Red */
+    color: #E50914; 
 }
 
 .item-card {
-    background: #333; /* Dark Grey */
+    background: #333; 
     padding: 15px;
     border-radius: 10px;
     margin-bottom: 10px;
