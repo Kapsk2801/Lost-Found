@@ -1,9 +1,8 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { collection, addDoc } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "./firebase"; // Ensure you export `storage` from firebase.js
-import "./ReportLostItem.css"; // Reuse the same CSS as ReportLostItem
+import { db } from "./firebase";
+import "./ReportLostItem.css";
 
 const ReportFoundItem = () => {
     const navigate = useNavigate();
@@ -11,73 +10,43 @@ const ReportFoundItem = () => {
     const [description, setDescription] = useState("");
     const [location, setLocation] = useState("");
     const [date, setDate] = useState("");
-    const [image, setImage] = useState(null); // To store the selected image file
-    const [imagePreview, setImagePreview] = useState(""); // To display the image preview
+    const [reporterName, setReporterName] = useState("");
+    const [sapId, setSapId] = useState("");
+    const [course, setCourse] = useState("");
+    const [contactEmail, setContactEmail] = useState("");
+    const [image, setImage] = useState(null);
+    const [previewUrl, setPreviewUrl] = useState("");
     const [error, setError] = useState("");
-    const [uploading, setUploading] = useState(false); // To handle upload state
-    const [cameraActive, setCameraActive] = useState(false); // To toggle camera
-    const videoRef = useRef(null); // Reference for video stream
-    const canvasRef = useRef(null); // Reference for capturing image
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef(null);
+    const cameraInputRef = useRef(null);
 
-    // Start camera when component mounts and cameraActive is true
-    useEffect(() => {
-        if (cameraActive) {
-            startCamera();
-        } else {
-            stopCamera();
-        }
-    }, [cameraActive]);
-
-    // Handle image selection
     const handleImageChange = (e) => {
         const file = e.target.files[0];
         if (file) {
-            setImage(file);
-            setImagePreview(URL.createObjectURL(file)); // Create a preview URL
-        }
-    };
-
-    // Handle camera capture
-    const handleCapture = () => {
-        const canvas = canvasRef.current;
-        const video = videoRef.current;
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        canvas.toBlob((blob) => {
-            const file = new File([blob], "capture.png", { type: "image/png" });
-            setImage(file);
-            setImagePreview(URL.createObjectURL(file));
-            setCameraActive(false); // Stop camera after capture
-        }, "image/png");
-    };
-
-    // Start camera
-    const startCamera = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
+            if (file.type.startsWith('image/')) {
+                setImage(file);
+                setPreviewUrl(URL.createObjectURL(file));
+                setError("");
+            } else {
+                setError("Please select an image file.");
+                setImage(null);
+                setPreviewUrl("");
             }
-        } catch (error) {
-            setError("Failed to access camera. Please allow camera permissions.");
-            setCameraActive(false); // Disable camera if access is denied
         }
     };
 
-    // Stop camera
-    const stopCamera = () => {
-        if (videoRef.current && videoRef.current.srcObject) {
-            videoRef.current.srcObject.getTracks().forEach((track) => track.stop());
-        }
-    };
-
-    // Handle form submission
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!itemName || !description || !location || !date || !image) {
-            setError("All fields are required, including an image!");
+        if (!itemName || !description || !location || !date || !reporterName || !sapId || !course || !contactEmail || !image) {
+            setError("All fields including image are required!");
+            return;
+        }
+
+        // Basic email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(contactEmail)) {
+            setError("Please enter a valid email address!");
             return;
         }
 
@@ -85,34 +54,43 @@ const ReportFoundItem = () => {
         setError("");
 
         try {
-            console.log("Uploading image to Firebase Storage...");
-            // Upload image to Firebase Storage
-            const storageRef = ref(storage, `items/${image.name}`);
-            await uploadBytes(storageRef, image);
-            console.log("Image uploaded successfully.");
+            // Convert image to base64 for storage
+            const reader = new FileReader();
+            reader.readAsDataURL(image);
+            reader.onload = async () => {
+                try {
+                    // Save item data to Firestore
+                    await addDoc(collection(db, "items"), {
+                        itemName,
+                        description,
+                        location,
+                        date,
+                        reporterName,
+                        sapId,
+                        course,
+                        contactEmail,
+                        imageData: reader.result,
+                        isLost: false,
+                        timestamp: new Date().toISOString()
+                    });
 
-            const imageUrl = await getDownloadURL(storageRef);
-            console.log("Image URL:", imageUrl);
-
-            // Save item data to Firestore
-            console.log("Saving item data to Firestore...");
-            const docRef = await addDoc(collection(db, "items"), {
-                itemName,
-                description,
-                location,
-                date,
-                imageUrl, // Store the image URL
-                reportedBy: "user@example.com", // Replace with actual user email
-                isLost: false, // Mark as found item
-            });
-            console.log("Item data saved successfully with ID:", docRef.id);
-
-            alert("Item reported successfully!");
-            navigate("/home"); // Redirect to home after submission
+                    alert("Item reported successfully!");
+                    navigate("/home");
+                } catch (error) {
+                    console.error("Error saving to Firestore:", error);
+                    setError("Failed to save item. Please try again.");
+                } finally {
+                    setUploading(false);
+                }
+            };
+            reader.onerror = (error) => {
+                console.error("Error reading file:", error);
+                setError("Error processing image. Please try again.");
+                setUploading(false);
+            };
         } catch (error) {
             console.error("Error reporting item:", error);
             setError("Failed to report item. Please try again.");
-        } finally {
             setUploading(false);
         }
     };
@@ -129,76 +107,113 @@ const ReportFoundItem = () => {
                 {error && <p className="error-message">{error}</p>}
 
                 <form onSubmit={handleSubmit}>
-                    <input
-                        type="text"
-                        placeholder="Item Name"
-                        value={itemName}
-                        onChange={(e) => setItemName(e.target.value)}
-                        required
-                    />
-                    <textarea
-                        placeholder="Description"
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        required
-                    />
-                    <input
-                        type="text"
-                        placeholder="Location"
-                        value={location}
-                        onChange={(e) => setLocation(e.target.value)}
-                        required
-                    />
-                    <input
-                        type="date"
-                        placeholder="Date"
-                        value={date}
-                        onChange={(e) => setDate(e.target.value)}
-                        required
-                    />
-
-                    {/* Image Upload Section */}
-                    <div className="image-upload">
-                        <label htmlFor="image-upload-input" className="upload-label">
-                            {imagePreview ? (
-                                <img src={imagePreview} alt="Preview" className="image-preview" />
-                            ) : (
-                                <div className="upload-placeholder">
-                                    <span>Click to upload an image</span>
-                                </div>
-                            )}
-                        </label>
+                    <div className="form-section">
+                        <h3>Item Details</h3>
                         <input
-                            id="image-upload-input"
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageChange}
+                            type="text"
+                            placeholder="Item Name"
+                            value={itemName}
+                            onChange={(e) => setItemName(e.target.value)}
+                            required
+                        />
+                        <textarea
+                            placeholder="Description"
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            required
+                        />
+                        <input
+                            type="text"
+                            placeholder="Location"
+                            value={location}
+                            onChange={(e) => setLocation(e.target.value)}
+                            required
+                        />
+                        <input
+                            type="date"
+                            placeholder="Date"
+                            value={date}
+                            onChange={(e) => setDate(e.target.value)}
                             required
                         />
                     </div>
 
-                    {/* Camera Section */}
-                    <div className="camera-section">
-                        {cameraActive ? (
-                            <>
-                                <video ref={videoRef} autoPlay className="camera-preview"></video>
-                                <button type="button" onClick={handleCapture} className="capture-btn">
-                                    Capture
-                                </button>
-                                <button type="button" onClick={() => setCameraActive(false)} className="stop-camera-btn">
-                                    Stop Camera
-                                </button>
-                            </>
-                        ) : (
-                            <button type="button" onClick={() => setCameraActive(true)} className="start-camera-btn">
-                                Take a Picture
+                    <div className="form-section">
+                        <h3>Reporter Details</h3>
+                        <input
+                            type="text"
+                            placeholder="Your Name"
+                            value={reporterName}
+                            onChange={(e) => setReporterName(e.target.value)}
+                            required
+                        />
+                        <input
+                            type="text"
+                            placeholder="SAP ID"
+                            value={sapId}
+                            onChange={(e) => setSapId(e.target.value)}
+                            required
+                        />
+                        <input
+                            type="text"
+                            placeholder="Course"
+                            value={course}
+                            onChange={(e) => setCourse(e.target.value)}
+                            required
+                        />
+                        <input
+                            type="email"
+                            placeholder="Contact Email"
+                            value={contactEmail}
+                            onChange={(e) => setContactEmail(e.target.value)}
+                            required
+                        />
+                    </div>
+
+                    <div className="form-section">
+                        <h3>Item Image</h3>
+                        <div className="image-upload" onClick={() => fileInputRef.current.click()}>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImageChange}
+                                style={{ display: 'none' }}
+                                ref={fileInputRef}
+                            />
+                            <div className="upload-label">
+                                <i className="fas fa-cloud-upload-alt"></i>
+                                <span className="upload-placeholder">
+                                    Click to upload image or drag and drop
+                                </span>
+                            </div>
+                            {previewUrl && (
+                                <div className="image-preview">
+                                    <img src={previewUrl} alt="Preview" />
+                                </div>
+                            )}
+                        </div>
+                        
+                        <div className="camera-upload">
+                            <input
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                onChange={handleImageChange}
+                                style={{ display: 'none' }}
+                                ref={cameraInputRef}
+                            />
+                            <button 
+                                type="button" 
+                                className="camera-btn"
+                                onClick={() => cameraInputRef.current.click()}
+                            >
+                                Take Photo with Camera
                             </button>
-                        )}
-                        <canvas ref={canvasRef} style={{ display: "none" }}></canvas>
+                        </div>
                     </div>
 
                     <button type="submit" disabled={uploading}>
-                        {uploading ? "Uploading..." : "Submit"}
+                        {uploading ? "Submitting..." : "Submit"}
                     </button>
                 </form>
             </div>
