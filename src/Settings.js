@@ -1,5 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { getAuth, updatePassword, updateEmail, deleteUser, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
+import { doc, updateDoc, deleteDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "./firebase";
 import "./Settings.css";
 
 // Chevron Icon SVG
@@ -22,51 +25,294 @@ const ChevronIcon = () => (
 
 const Settings = () => {
     const navigate = useNavigate();
+    const auth = getAuth();
     const [expandedOption, setExpandedOption] = useState(null);
-    const [darkMode, setDarkMode] = useState(false); // State for Dark Mode
+    const [darkMode, setDarkMode] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
+    
+    // Form states
+    const [currentPassword, setCurrentPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [newEmail, setNewEmail] = useState("");
+    const [notifications, setNotifications] = useState({
+        newComments: true,
+        itemMatches: true,
+        statusUpdates: true
+    });
+
+    // Load dark mode preference from localStorage
+    useEffect(() => {
+        const savedDarkMode = localStorage.getItem("darkMode") === "true";
+        setDarkMode(savedDarkMode);
+        document.body.classList.toggle("dark-mode", savedDarkMode);
+    }, []);
+
+    // Load notification preferences from Firestore
+    useEffect(() => {
+        const loadNotificationPreferences = async () => {
+            if (auth.currentUser) {
+                const userRef = doc(db, "users", auth.currentUser.uid);
+                try {
+                    const docSnap = await getDocs(userRef);
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        setNotifications(data.notifications || {
+                            newComments: true,
+                            itemMatches: true,
+                            statusUpdates: true
+                        });
+                    }
+                } catch (error) {
+                    console.error("Error loading notification preferences:", error);
+                }
+            }
+        };
+        loadNotificationPreferences();
+    }, [auth.currentUser]);
 
     // Toggle Dark Mode
     const toggleDarkMode = () => {
-        setDarkMode(!darkMode);
-        document.body.classList.toggle("dark-mode", !darkMode); // Apply dark mode to the entire app
+        const newDarkMode = !darkMode;
+        setDarkMode(newDarkMode);
+        localStorage.setItem("darkMode", newDarkMode.toString());
+        document.body.classList.toggle("dark-mode", newDarkMode);
     };
 
-    // Options related to Lost and Found
+    // Reauthorize user
+    const reauthorizeUser = async (password) => {
+        const user = auth.currentUser;
+        const credential = EmailAuthProvider.credential(user.email, password);
+        await reauthenticateWithCredential(user, credential);
+    };
+
+    // Change Password
+    const handleChangePassword = async () => {
+        setLoading(true);
+        setError("");
+        setSuccess("");
+        
+        try {
+            await reauthorizeUser(currentPassword);
+            await updatePassword(auth.currentUser, newPassword);
+            setSuccess("Password updated successfully!");
+            setCurrentPassword("");
+            setNewPassword("");
+            setExpandedOption(null);
+        } catch (error) {
+            setError(error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Update Email
+    const handleUpdateEmail = async () => {
+        setLoading(true);
+        setError("");
+        setSuccess("");
+        
+        try {
+            await reauthorizeUser(currentPassword);
+            await updateEmail(auth.currentUser, newEmail);
+            setSuccess("Email updated successfully!");
+            setCurrentPassword("");
+            setNewEmail("");
+            setExpandedOption(null);
+        } catch (error) {
+            setError(error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Update Notification Preferences
+    const handleNotificationUpdate = async (type) => {
+        setLoading(true);
+        setError("");
+        
+        try {
+            const newNotifications = {
+                ...notifications,
+                [type]: !notifications[type]
+            };
+            
+            await updateDoc(doc(db, "users", auth.currentUser.uid), {
+                notifications: newNotifications
+            });
+            
+            setNotifications(newNotifications);
+            setSuccess("Notification preferences updated!");
+        } catch (error) {
+            setError(error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Delete Account
+    const handleDeleteAccount = async () => {
+        if (!window.confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
+            return;
+        }
+
+        setLoading(true);
+        setError("");
+        
+        try {
+            await reauthorizeUser(currentPassword);
+            
+            // Delete user's posts
+            const itemsQuery = query(
+                collection(db, "items"),
+                where("userEmail", "==", auth.currentUser.email)
+            );
+            const itemsSnapshot = await getDocs(itemsQuery);
+            const deletePromises = itemsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+            await Promise.all(deletePromises);
+            
+            // Delete user document
+            await deleteDoc(doc(db, "users", auth.currentUser.uid));
+            
+            // Delete Firebase Auth account
+            await deleteUser(auth.currentUser);
+            
+            navigate("/");
+        } catch (error) {
+            setError(error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Handle option click
+    const handleOptionClick = (optionId) => {
+        setExpandedOption(expandedOption === optionId ? null : optionId);
+        setError("");
+        setSuccess("");
+    };
+
     const settingsOptions = [
         {
             id: 1,
             title: "Change Password",
             description: "Update your account password.",
-            action: () => alert("Change Password clicked!"), // Replace with actual functionality
+            content: (
+                <div className="form-group">
+                    <input
+                        type="password"
+                        placeholder="Current Password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                    />
+                    <input
+                        type="password"
+                        placeholder="New Password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                    />
+                    <button 
+                        onClick={handleChangePassword}
+                        disabled={loading || !currentPassword || !newPassword}
+                    >
+                        {loading ? "Updating..." : "Update Password"}
+                    </button>
+                </div>
+            )
         },
         {
             id: 2,
             title: "Update Email",
             description: "Change the email address associated with your account.",
-            action: () => alert("Update Email clicked!"), // Replace with actual functionality
+            content: (
+                <div className="form-group">
+                    <input
+                        type="password"
+                        placeholder="Current Password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                    />
+                    <input
+                        type="email"
+                        placeholder="New Email"
+                        value={newEmail}
+                        onChange={(e) => setNewEmail(e.target.value)}
+                    />
+                    <button 
+                        onClick={handleUpdateEmail}
+                        disabled={loading || !currentPassword || !newEmail}
+                    >
+                        {loading ? "Updating..." : "Update Email"}
+                    </button>
+                </div>
+            )
         },
         {
             id: 3,
             title: "Notification Preferences",
             description: "Manage your notification settings for lost and found items.",
-            action: () => alert("Notification Preferences clicked!"), // Replace with actual functionality
+            content: (
+                <div className="notification-preferences">
+                    <div className="notification-option">
+                        <label>
+                            <input
+                                type="checkbox"
+                                checked={notifications.newComments}
+                                onChange={() => handleNotificationUpdate("newComments")}
+                            />
+                            Notify me about new comments
+                        </label>
+                    </div>
+                    <div className="notification-option">
+                        <label>
+                            <input
+                                type="checkbox"
+                                checked={notifications.itemMatches}
+                                onChange={() => handleNotificationUpdate("itemMatches")}
+                            />
+                            Notify me about potential item matches
+                        </label>
+                    </div>
+                    <div className="notification-option">
+                        <label>
+                            <input
+                                type="checkbox"
+                                checked={notifications.statusUpdates}
+                                onChange={() => handleNotificationUpdate("statusUpdates")}
+                            />
+                            Notify me about status updates
+                        </label>
+                    </div>
+                </div>
+            )
         },
         {
             id: 4,
             title: "Delete Account",
             description: "Permanently delete your account and all associated data.",
-            action: () => alert("Delete Account clicked!"), // Replace with actual functionality
-        },
-    ];
-
-    // Handle option click
-    const handleOptionClick = (optionId) => {
-        if (expandedOption === optionId) {
-            setExpandedOption(null); // Collapse if already expanded
-        } else {
-            setExpandedOption(optionId); // Expand the clicked option
+            content: (
+                <div className="form-group">
+                    <p className="warning-text">
+                        This action cannot be undone. All your posts and data will be permanently deleted.
+                    </p>
+                    <input
+                        type="password"
+                        placeholder="Current Password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                    />
+                    <button 
+                        className="delete-account-btn"
+                        onClick={handleDeleteAccount}
+                        disabled={loading || !currentPassword}
+                    >
+                        {loading ? "Deleting..." : "Delete Account"}
+                    </button>
+                </div>
+            )
         }
-    };
+    ];
 
     return (
         <div className={`settings-container ${darkMode ? "dark-mode" : ""}`}>
@@ -78,7 +324,9 @@ const Settings = () => {
             <div className="settings-content">
                 <h2>Settings</h2>
 
-                {/* List of Settings Options */}
+                {error && <div className="error-message">{error}</div>}
+                {success && <div className="success-message">{success}</div>}
+
                 <div className="settings-options">
                     {/* Account Settings */}
                     <div className="settings-group">
@@ -95,12 +343,10 @@ const Settings = () => {
                                     <h4>{option.title}</h4>
                                     <ChevronIcon />
                                 </div>
-
-                                {/* Expanded Content */}
                                 {expandedOption === option.id && (
                                     <div className="option-content">
                                         <p>{option.description}</p>
-                                        <button onClick={option.action}>Go</button>
+                                        {option.content}
                                     </div>
                                 )}
                             </div>
@@ -122,12 +368,10 @@ const Settings = () => {
                                     <h4>{option.title}</h4>
                                     <ChevronIcon />
                                 </div>
-
-                                {/* Expanded Content */}
                                 {expandedOption === option.id && (
                                     <div className="option-content">
                                         <p>{option.description}</p>
-                                        <button onClick={option.action}>Go</button>
+                                        {option.content}
                                     </div>
                                 )}
                             </div>
@@ -162,12 +406,10 @@ const Settings = () => {
                                     <h4>{option.title}</h4>
                                     <ChevronIcon />
                                 </div>
-
-                                {/* Expanded Content */}
                                 {expandedOption === option.id && (
                                     <div className="option-content">
                                         <p>{option.description}</p>
-                                        <button onClick={option.action}>Go</button>
+                                        {option.content}
                                     </div>
                                 )}
                             </div>

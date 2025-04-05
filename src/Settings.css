@@ -10,46 +10,39 @@
     padding: 0;
     margin: 0;
     overflow-y: auto;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+}
+
+.settings-container::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
 }
 
 /* Content Section */
 .settings-content {
     text-align: center;
-    background: rgba(37, 37, 37, 0.9); /* Semi-transparent dark background */
-    padding: 40px; /* Increased padding for more space */
+    background: rgba(0, 0, 0, 0.7);
+    padding: 40px;
     border-radius: 15px;
     box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
-    width: 95%; /* Wider container */
-    max-width: 1400px; /* Increased max-width for wider screens */
-    margin-top: 100px; /* Space for the fixed header */
+    width: 95%;
+    max-width: 1400px;
+    margin-top: 100px;
     margin-bottom: 20px;
     overflow-y: auto;
     max-height: calc(100vh - 160px);
     animation: fadeInUp 0.8s ease-out;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.settings-content::-webkit-scrollbar {
+    display: none;
 }
 
 @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(30px); }
     to { opacity: 1; transform: translateY(0); }
-}
-
-/* Themed Scrollbar */
-.settings-content::-webkit-scrollbar {
-    width: 10px; /* Width of the scrollbar */
-}
-
-.settings-content::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1); /* Semi-transparent track */
-    border-radius: 5px;
-}
-
-.settings-content::-webkit-scrollbar-thumb {
-    background: #E50914; /* Red scrollbar thumb */
-    border-radius: 5px;
-}
-
-.settings-content::-webkit-scrollbar-thumb:hover {
-    background: #b00610; /* Darker red on hover */
 }
 
 /* Dark Mode Switch */
@@ -70,7 +63,7 @@
 .slider {
     width: 26px;
     height: 26px;
-    background: #E50914; /* Red */
+    background: #E50914;
     border-radius: 50%;
     position: absolute;
     top: 2px;
@@ -78,13 +71,13 @@
 }
 
 .slider.on {
-    transform: translateX(32px); /* Move to the right for "On" state */
-    background: white; /* White dot */
+    transform: translateX(32px);
+    background: white;
 }
 
 .slider.off {
-    transform: translateX(2px); /* Move to the left for "Off" state */
-    background: #E50914; /* Red dot */
+    transform: translateX(2px);
+    background: #E50914;
 }
 
 /* Dark Mode Styles */
@@ -137,23 +130,25 @@ body.dark-mode .option-content button:hover {
 
 .group-title {
     font-size: 18px;
-    color: #E50914; /* Red */
+    color: #E50914;
     margin-bottom: 10px;
     text-align: left;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .settings-option {
-    background: rgba(255, 255, 255, 0.1); /* Semi-transparent white */
+    background: rgba(255, 255, 255, 0.05);
     border-radius: 15px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     overflow: hidden;
     transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .settings-option:hover {
     transform: translateY(-5px);
-    box-shadow: 0 8px 20px rgba(229, 9, 20, 0.5); /* Red glow on hover */
+    box-shadow: 0 8px 20px rgba(229, 9, 20, 0.5);
+    border-color: rgba(229, 9, 20, 0.3);
 }
 
 .option-header {
@@ -163,34 +158,34 @@ body.dark-mode .option-content button:hover {
     padding: 20px;
     cursor: pointer;
     transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .option-header:hover {
-    background: rgba(255, 255, 255, 0.2); /* Lighten background on hover */
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .option-header h4 {
     font-size: 16px;
-    color: #E50914; /* Red */
+    color: #E50914;
     margin: 0;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 
-/* Chevron Icon for Expand/Collapse */
 .chevron-icon {
     width: 20px;
     height: 20px;
-    fill: #E50914; /* Red */
+    fill: #E50914;
     transition: transform 0.3s ease;
 }
 
 .settings-option.expanded .chevron-icon {
-    transform: rotate(180deg); /* Rotate chevron when expanded */
+    transform: rotate(180deg);
 }
 
 .option-content {
     padding: 20px;
-    background: rgba(255, 255, 255, 0.05); /* Semi-transparent white */
+    background: rgba(255, 255, 255, 0.05);
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     animation: slideDown 0.3s ease-out;
 }
@@ -202,13 +197,13 @@ body.dark-mode .option-content button:hover {
 
 .option-content p {
     font-size: 14px;
-    color: #ddd; /* Light grey */
+    color: #ddd;
     margin-bottom: 15px;
 }
 
 .option-content button {
     padding: 10px 20px;
-    background: #E50914; /* Red */
+    background: #E50914;
     color: white;
     border: none;
     border-radius: 25px;
@@ -219,22 +214,203 @@ body.dark-mode .option-content button:hover {
 }
 
 .option-content button:hover {
-    background: #b00610; /* Darker red */
-    transform: scale(1.05); /* Slightly enlarge on hover */
+    background: #b00610;
+    transform: scale(1.05);
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
     .settings-content {
         padding: 20px;
-        margin-top: 80px; /* Adjust for smaller screens */
+        margin-top: 80px;
     }
 
     .option-header h4 {
-        font-size: 14px; /* Smaller font for mobile */
+        font-size: 14px;
     }
 
     .option-content button {
-        font-size: 14px; /* Smaller button for mobile */
+        font-size: 14px;
+    }
+}
+
+/* Form Styles */
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.form-group input {
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #E50914;
+    box-shadow: 0 0 0 2px rgba(229, 9, 20, 0.2);
+}
+
+.form-group button {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    background: #E50914;
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.form-group button:hover:not(:disabled) {
+    background: #b00610;
+    transform: translateY(-2px);
+}
+
+.form-group button:disabled {
+    background: #666;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+/* Notification Preferences */
+.notification-preferences {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.notification-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.notification-option label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.notification-option input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #E50914;
+    cursor: pointer;
+}
+
+/* Messages */
+.error-message,
+.success-message {
+    margin: 20px 0;
+    padding: 15px;
+    border-radius: 8px;
+    font-size: 14px;
+    animation: slideIn 0.3s ease-out;
+}
+
+.error-message {
+    background: rgba(220, 38, 38, 0.1);
+    border: 1px solid rgba(220, 38, 38, 0.2);
+    color: #ef4444;
+}
+
+.success-message {
+    background: rgba(34, 197, 94, 0.1);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Warning Text */
+.warning-text {
+    color: #ef4444;
+    font-size: 14px;
+    margin-bottom: 15px;
+    padding: 10px;
+    background: rgba(220, 38, 38, 0.1);
+    border-radius: 8px;
+    border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+/* Delete Account Button */
+.delete-account-btn {
+    background: #dc2626 !important;
+}
+
+.delete-account-btn:hover:not(:disabled) {
+    background: #b91c1c !important;
+}
+
+/* Loading State */
+button:disabled {
+    position: relative;
+    overflow: hidden;
+}
+
+button:disabled::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 200%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.2),
+        transparent
+    );
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(100%);
+    }
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+    .form-group input,
+    .form-group button {
+        font-size: 14px;
+        padding: 10px;
+    }
+
+    .notification-option label {
+        font-size: 13px;
+    }
+
+    .error-message,
+    .success-message,
+    .warning-text {
+        font-size: 13px;
+        padding: 12px;
     }
 }
