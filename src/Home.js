@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { getAuth, signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
-import { collection, onSnapshot, doc, updateDoc, arrayUnion, Timestamp, query, orderBy, where } from "firebase/firestore";
+import { collection, onSnapshot, doc, updateDoc, arrayUnion, Timestamp, query, orderBy } from "firebase/firestore";
 import { db } from "./firebase";
 import EmojiPicker from 'emoji-picker-react';
 import "./Home.css";
-import ItemMatching from './components/ItemMatching';
-import Analytics from './components/Analytics';
 
 const Home = () => {
     const auth = getAuth();
@@ -24,14 +22,6 @@ const Home = () => {
     const [activePost, setActivePost] = useState(null);
     const [showScrollTop, setShowScrollTop] = useState(false);
     const [collapsedComments, setCollapsedComments] = useState({});
-    const [selectedTab, setSelectedTab] = useState('feed');
-    const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all');
-    const [categoryFilter, setCategoryFilter] = useState('all');
-    const [locationFilter, setLocationFilter] = useState('all');
-    const [sortBy, setSortBy] = useState('newest');
-    const [showFilters, setShowFilters] = useState(false);
-    const [error, setError] = useState(null);
 
     // Handle scroll events
     useEffect(() => {
@@ -54,52 +44,26 @@ const Home = () => {
 
     // Set up real-time listener for items
     useEffect(() => {
-        let q = collection(db, 'items');
+        const itemsQuery = query(collection(db, 'items'), orderBy('timestamp', 'desc'));
         
-        // Apply filters
-        if (statusFilter !== 'all') {
-            q = query(q, where('status', '==', statusFilter));
-        }
-        if (categoryFilter !== 'all') {
-            q = query(q, where('category', '==', categoryFilter));
-        }
-        if (locationFilter !== 'all') {
-            q = query(q, where('location', '==', locationFilter));
-        }
-        
-        // Apply sorting
-        q = query(q, orderBy('timestamp', sortBy === 'newest' ? 'desc' : 'asc'));
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            try {
-                const itemsData = snapshot.docs.map(doc => ({
+        const unsubscribe = onSnapshot(itemsQuery, (snapshot) => {
+            const itemsData = [];
+            snapshot.forEach((doc) => {
+                itemsData.push({
                     id: doc.id,
                     ...doc.data()
-                }));
-                
-                // Apply search filter
-                const filteredItems = itemsData.filter(item => 
-                    item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    item.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    item.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    item.location?.toLowerCase().includes(searchQuery.toLowerCase())
-                );
-                
-                setItems(filteredItems);
-                setLoading(false);
-            } catch (err) {
-                console.error('Error fetching items:', err);
-                setError('Failed to load items. Please try again later.');
-                setLoading(false);
-            }
+                });
+            });
+            setItems(itemsData);
+            setLoading(false);
         }, (error) => {
-            console.error('Error in snapshot listener:', error);
-            setError('Failed to load items. Please try again later.');
+            console.error("Error fetching items:", error);
             setLoading(false);
         });
 
+        // Clean up the listener when component unmounts
         return () => unsubscribe();
-    }, [statusFilter, categoryFilter, locationFilter, sortBy, searchQuery]);
+    }, []);
 
     useEffect(() => {
         auth.onAuthStateChanged((currentUser) => {
@@ -250,41 +214,10 @@ const Home = () => {
         }, 0);
     };
 
-    const handleSignOut = async () => {
-        try {
-            await signOut(auth);
-            navigate('/');
-        } catch (error) {
-            console.error('Error signing out:', error);
-        }
-    };
-
-    const clearFilters = () => {
-        setSearchQuery('');
-        setStatusFilter('all');
-        setCategoryFilter('all');
-        setLocationFilter('all');
-        setSortBy('newest');
-    };
-
     return (
         <div className="home-container">
             <header>
                 <h1>Retrievio - Lost and Found</h1>
-                <div className="nav-tabs">
-                    <button 
-                        className={`tab-btn ${selectedTab === 'feed' ? 'active' : ''}`}
-                        onClick={() => setSelectedTab('feed')}
-                    >
-                        Feed
-                    </button>
-                    <button 
-                        className={`tab-btn ${selectedTab === 'analytics' ? 'active' : ''}`}
-                        onClick={() => setSelectedTab('analytics')}
-                    >
-                        Analytics
-                    </button>
-                </div>
                 <div className="profile-dropdown">
                     <div className="profile-circle" onClick={toggleDropdown}>
                         {user?.email[0].toUpperCase()}
@@ -300,7 +233,7 @@ const Home = () => {
                             <button onClick={() => navigate("/settings")}>
                                 Settings
                             </button>
-                            <button onClick={handleSignOut}>
+                            <button onClick={handleLogout}>
                                 Logout
                             </button>
                         </div>
@@ -309,249 +242,146 @@ const Home = () => {
             </header>
 
             <div className="content">
-                {selectedTab === 'feed' ? (
-                    <>
-                        <div className="content-header">
-                            <h2>Recent Items</h2>
-                            <div className="filters-container">
-                                <div className="search-bar">
-                                    <input
-                                        type="text"
-                                        placeholder="Search items..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="search-input"
-                                    />
-                                    <button 
-                                        className="filter-toggle"
-                                        onClick={() => setShowFilters(!showFilters)}
-                                    >
-                                        {showFilters ? 'Hide Filters' : 'Show Filters'}
-                                    </button>
-                                </div>
-                                
-                                {showFilters && (
-                                    <div className="filters-panel">
-                                        <div className="filter-group">
-                                            <label>Status</label>
-                                            <select 
-                                                value={statusFilter}
-                                                onChange={(e) => setStatusFilter(e.target.value)}
-                                                className="filter-select"
-                                            >
-                                                <option value="all">All Status</option>
-                                                <option value="lost">Lost</option>
-                                                <option value="found">Found</option>
-                                            </select>
-                                        </div>
-                                        
-                                        <div className="filter-group">
-                                            <label>Category</label>
-                                            <select 
-                                                value={categoryFilter}
-                                                onChange={(e) => setCategoryFilter(e.target.value)}
-                                                className="filter-select"
-                                            >
-                                                <option value="all">All Categories</option>
-                                                <option value="electronics">Electronics</option>
-                                                <option value="books">Books</option>
-                                                <option value="clothing">Clothing</option>
-                                                <option value="accessories">Accessories</option>
-                                                <option value="documents">Documents</option>
-                                                <option value="other">Other</option>
-                                            </select>
-                                        </div>
-                                        
-                                        <div className="filter-group">
-                                            <label>Location</label>
-                                            <select 
-                                                value={locationFilter}
-                                                onChange={(e) => setLocationFilter(e.target.value)}
-                                                className="filter-select"
-                                            >
-                                                <option value="all">All Locations</option>
-                                                <option value="library">Library</option>
-                                                <option value="cafeteria">Cafeteria</option>
-                                                <option value="classroom">Classroom</option>
-                                                <option value="lab">Laboratory</option>
-                                                <option value="gym">Gym</option>
-                                                <option value="other">Other</option>
-                                            </select>
-                                        </div>
-                                        
-                                        <div className="filter-group">
-                                            <label>Sort By</label>
-                                            <select 
-                                                value={sortBy}
-                                                onChange={(e) => setSortBy(e.target.value)}
-                                                className="filter-select"
-                                            >
-                                                <option value="newest">Newest First</option>
-                                                <option value="oldest">Oldest First</option>
-                                            </select>
-                                        </div>
-                                        
-                                        <button 
-                                            className="clear-filters"
-                                            onClick={clearFilters}
-                                        >
-                                            Clear Filters
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                <h2>Welcome back, {user?.email.split('@')[0]}</h2>
 
-                        {loading ? (
-                            <div className="loading-container">
-                                <div className="loading-spinner"></div>
-                                <p>Loading items...</p>
-                            </div>
-                        ) : error ? (
-                            <div className="error-container">
-                                <p>{error}</p>
-                                <button onClick={() => window.location.reload()}>Retry</button>
-                            </div>
-                        ) : items.length === 0 ? (
-                            <div className="no-items">
-                                <p>No items found. Be the first to report a lost or found item!</p>
-                                <div className="report-buttons">
-                                    <button className="report-button">Report Lost Item</button>
-                                    <button className="report-button">Report Found Item</button>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="items-grid">
-                                {items.map((item) => (
-                                    <div key={item.id} id={`post-${item.id}`} className="item-card">
-                                        <div className="item-header">
-                                            <div className="item-info">
-                                                <span className={`status-badge ${item.isLost ? 'status-lost' : 'status-found'}`}>
-                                                    {item.isLost ? 'Lost Item' : 'Found Item'}
-                                                </span>
-                                            </div>
+                {loading ? (
+                    <div className="loading-container">
+                        <div className="loading-spinner"></div>
+                    </div>
+                ) : (
+                    <div className="items-grid">
+                    {items.length > 0 ? (
+                        items.map((item) => (
+                            <div key={item.id} id={`post-${item.id}`} className="item-card">
+                                    <div className="item-header">
+                                        <div className="item-info">
+                                            <span className={`status-badge ${item.isLost ? 'status-lost' : 'status-found'}`}>
+                                                {item.isLost ? 'Lost Item' : 'Found Item'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    {(item.imageUrl || item.imageData) && (
+                                        <div className="item-image">
+                                            <img src={item.imageUrl || item.imageData} alt={item.itemName} />
+                                        </div>
+                                    )}
+                                    
+                                    <div className="item-content">
+                                        <div className="item-details">
+                                <h4>{item.itemName}</h4>
+                                <p>{item.description}</p>
+                                <p><strong>Location:</strong> {item.location}</p>
+                                            <p><strong>Date:</strong> {new Date(item.date).toLocaleDateString('en-US', {
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric'
+                                            })}</p>
                                         </div>
                                         
-                                        {(item.imageUrl || item.imageData) && (
-                                            <div className="item-image">
-                                                <img src={item.imageUrl || item.imageData} alt={item.itemName} />
-                                            </div>
-                                        )}
-                                        
-                                        <div className="item-content">
-                                            <div className="item-details">
-                                                <h4>{item.itemName}</h4>
-                                                <p>{item.description}</p>
-                                                <p><strong>Location:</strong> {item.location}</p>
-                                                <p><strong>Date:</strong> {new Date(item.date).toLocaleDateString('en-US', {
-                                                    year: 'numeric',
-                                                    month: 'long',
-                                                    day: 'numeric'
-                                                })}</p>
-                                            </div>
-                                            
-                                            <div className={`comments-section ${collapsedComments[item.id] ? '' : 'collapsed'}`}>
-                                                <div className={`comments-header ${!collapsedComments[item.id] ? 'collapsed' : ''}`}>
-                                                    <div 
-                                                        className={`comments-toggle ${!collapsedComments[item.id] ? 'collapsed' : ''}`}
-                                                        onClick={() => toggleComments(item.id)}
-                                                    >
-                                                        <span className="toggle-icon">▼</span>
-                                                        <span>Comments</span>
-                                                        <span className="comments-count">
-                                                            ({getCommentsCount(item.comments)})
-                                                        </span>
-                                                    </div>
+                                        <div className={`comments-section ${collapsedComments[item.id] ? '' : 'collapsed'}`}>
+                                            <div className={`comments-header ${!collapsedComments[item.id] ? 'collapsed' : ''}`}>
+                                                <div 
+                                                    className={`comments-toggle ${!collapsedComments[item.id] ? 'collapsed' : ''}`}
+                                                    onClick={() => toggleComments(item.id)}
+                                                >
+                                                    <span className="toggle-icon">▼</span>
+                                                    <span>Comments</span>
+                                                    <span className="comments-count">
+                                                        ({getCommentsCount(item.comments)})
+                                                    </span>
                                                 </div>
-
-                                                {collapsedComments[item.id] && (
-                                                    <>
-                                                        <div className="comments-list">
-                                                            {item.comments?.map((comment, index) => (
-                                                                <div key={`${item.id}-comment-${index}`} className="comment">
-                                                                    <div className="comment-header">
-                                                                        <p className="comment-user">{comment.userEmail.split('@')[0]}</p>
-                                                                        <div className="comment-actions">
-                                                                            <button 
-                                                                                className="reply-button" 
-                                                                                onClick={() => handleReply(item.id, comment.id)}
-                                                                            >
-                                                                                Reply
-                                                                            </button>
-                                                                        </div>
-                                                                    </div>
-                                                                    <p className="comment-text">{comment.text}</p>
-                                                                    <p className="comment-time">
-                                                                        {comment.timestamp?.toDate?.() 
-                                                                            ? comment.timestamp.toDate().toLocaleDateString('en-US', {
-                                                                                month: 'short',
-                                                                                day: 'numeric',
-                                                                                hour: '2-digit',
-                                                                                minute: '2-digit'
-                                                                            })
-                                                                            : new Date(comment.timestamp).toLocaleDateString('en-US', {
-                                                                                month: 'short',
-                                                                                day: 'numeric',
-                                                                                hour: '2-digit',
-                                                                                minute: '2-digit'
-                                                                            })}
-                                                                    </p>
-                                                                    
-                                                                    {comment.replies && comment.replies.length > 0 && (
-                                                                        <div className="comment-replies">
-                                                                            {comment.replies.map(reply => (
-                                                                                <div key={reply.id} className="comment">
-                                                                                    <div className="comment-header">
-                                                                                        <p className="comment-user">{reply.userEmail.split('@')[0]}</p>
-                                                                                    </div>
-                                                                                    <p className="comment-text">{reply.text}</p>
-                                                                                    <p className="comment-time">
-                                                                                        {reply.timestamp?.toDate?.() 
-                                                                                            ? reply.timestamp.toDate().toLocaleDateString('en-US', {
-                                                                                                month: 'short',
-                                                                                                day: 'numeric',
-                                                                                                hour: '2-digit',
-                                                                                                minute: '2-digit'
-                                                                                            })
-                                                                                            : new Date(reply.timestamp).toLocaleDateString('en-US', {
-                                                                                                month: 'short',
-                                                                                                day: 'numeric',
-                                                                                                hour: '2-digit',
-                                                                                                minute: '2-digit'
-                                                                                            })}
-                                                                                    </p>
-                                                                                </div>
-                                                                            ))}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                        <div className={`add-comment ${!collapsedComments[item.id] ? 'collapsed' : ''}`}>
-                                                            <textarea
-                                                                placeholder={replyingTo && activePost === item.id ? 
-                                                                    "Write a reply..." : "Write a comment..."}
-                                                                value={activePost === item.id ? commentText : ''}
-                                                                onChange={(e) => {
-                                                                    setActivePost(item.id);
-                                                                    setCommentText(e.target.value);
-                                                                }}
-                                                            />
-                                                            <button onClick={() => handleAddComment(item.id)}>
-                                                                {replyingTo && activePost === item.id ? 'Reply' : 'Post'}
-                                                            </button>
-                                                        </div>
-                                                    </>
-                                                )}
                                             </div>
+
+                                            {collapsedComments[item.id] && (
+                                                <>
+                                                    <div className="comments-list">
+                                                        {item.comments?.map((comment, index) => (
+                                                            <div key={`${item.id}-comment-${index}`} className="comment">
+                                                                <div className="comment-header">
+                                                                    <p className="comment-user">{comment.userEmail.split('@')[0]}</p>
+                                                                    <div className="comment-actions">
+                                                                        <button 
+                                                                            className="reply-button" 
+                                                                            onClick={() => handleReply(item.id, comment.id)}
+                                                                        >
+                                                                            Reply
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                                <p className="comment-text">{comment.text}</p>
+                                                                <p className="comment-time">
+                                                                    {comment.timestamp?.toDate?.() 
+                                                                        ? comment.timestamp.toDate().toLocaleDateString('en-US', {
+                                                                            month: 'short',
+                                                                            day: 'numeric',
+                                                                            hour: '2-digit',
+                                                                            minute: '2-digit'
+                                                                        })
+                                                                        : new Date(comment.timestamp).toLocaleDateString('en-US', {
+                                                                            month: 'short',
+                                                                            day: 'numeric',
+                                                                            hour: '2-digit',
+                                                                            minute: '2-digit'
+                                                                        })}
+                                                                </p>
+                                                                
+                                                                {comment.replies && comment.replies.length > 0 && (
+                                                                    <div className="comment-replies">
+                                                                        {comment.replies.map(reply => (
+                                                                            <div key={reply.id} className="comment">
+                                                                                <div className="comment-header">
+                                                                                    <p className="comment-user">{reply.userEmail.split('@')[0]}</p>
+                                                                                </div>
+                                                                                <p className="comment-text">{reply.text}</p>
+                                                                                <p className="comment-time">
+                                                                                    {reply.timestamp?.toDate?.() 
+                                                                                        ? reply.timestamp.toDate().toLocaleDateString('en-US', {
+                                                                                            month: 'short',
+                                                                                            day: 'numeric',
+                                                                                            hour: '2-digit',
+                                                                                            minute: '2-digit'
+                                                                                        })
+                                                                                        : new Date(reply.timestamp).toLocaleDateString('en-US', {
+                                                                                            month: 'short',
+                                                                                            day: 'numeric',
+                                                                                            hour: '2-digit',
+                                                                                            minute: '2-digit'
+                                                                                        })}
+                                                                                </p>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                    <div className={`add-comment ${!collapsedComments[item.id] ? 'collapsed' : ''}`}>
+                                                        <textarea
+                                                            placeholder={replyingTo && activePost === item.id ? 
+                                                                "Write a reply..." : "Write a comment..."}
+                                                            value={activePost === item.id ? commentText : ''}
+                                                            onChange={(e) => {
+                                                                setActivePost(item.id);
+                                                                setCommentText(e.target.value);
+                                                            }}
+                                                        />
+                                                        <button onClick={() => handleAddComment(item.id)}>
+                                                            {replyingTo && activePost === item.id ? 'Reply' : 'Post'}
+                                                        </button>
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
-                                ))}
+                            </div>
+                        ))
+                    ) : (
+                            <div className="no-items">
+                        <p>No items reported yet.</p>
                             </div>
                         )}
-                    </>
-                ) : (
-                    <Analytics />
+                    </div>
                 )}
             </div>
 
