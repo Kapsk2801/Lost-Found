@@ -6,6 +6,16 @@ import { db } from "./firebase";
 import EmojiPicker from 'emoji-picker-react';
 import "./Home.css";
 
+// Category icons and data
+const categories = [
+    { id: 'electronics', name: 'Electronics', icon: '📱' },
+    { id: 'documents', name: 'Documents', icon: '📄' },
+    { id: 'accessories', name: 'Accessories', icon: '👜' },
+    { id: 'keys', name: 'Keys', icon: '🔑' },
+    { id: 'clothing', name: 'Clothing', icon: '👕' },
+    { id: 'other', name: 'Other', icon: '📦' }
+];
+
 const Home = () => {
     const auth = getAuth();
     const navigate = useNavigate();
@@ -22,6 +32,11 @@ const Home = () => {
     const [activePost, setActivePost] = useState(null);
     const [showScrollTop, setShowScrollTop] = useState(false);
     const [collapsedComments, setCollapsedComments] = useState({});
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState('');
+    const [sortBy, setSortBy] = useState('latest');
+    const [filteredItems, setFilteredItems] = useState([]);
+    const [showShareOptions, setShowShareOptions] = useState({});
 
     // Handle scroll events
     useEffect(() => {
@@ -47,21 +62,39 @@ const Home = () => {
         const itemsQuery = query(collection(db, 'items'), orderBy('timestamp', 'desc'));
         
         const unsubscribe = onSnapshot(itemsQuery, (snapshot) => {
-            const itemsData = [];
-            snapshot.forEach((doc) => {
-                itemsData.push({
+            const itemsData = snapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
                     id: doc.id,
-                    ...doc.data()
-                });
+                    title: data.title || 'Item Title Missing',
+                    description: data.description || 'No description provided',
+                    location: data.location || 'Location not specified',
+                    status: data.status || 'unknown',
+                    date: data.timestamp instanceof Timestamp ? data.timestamp.toDate() : new Date(),
+                    image: data.imageUrl || data.imageData || 'https://via.placeholder.com/300?text=No+Image',
+                    category: data.category || 'other',
+                    comments: data.comments || [],
+                    contactInfo: data.contactInfo || 'Contact information not provided',
+                    reward: data.reward || 'No reward specified',
+                    lastSeen: data.lastSeen || 'Last seen location not specified',
+                    itemDetails: {
+                        brand: data.itemDetails?.brand || '',
+                        color: data.itemDetails?.color || '',
+                        model: data.itemDetails?.model || '',
+                        serialNumber: data.itemDetails?.serialNumber || ''
+                    },
+                    urgency: data.urgency || 'normal',
+                    claimStatus: data.claimStatus || 'unclaimed'
+                };
             });
             setItems(itemsData);
+            setFilteredItems(itemsData);
             setLoading(false);
         }, (error) => {
             console.error("Error fetching items:", error);
             setLoading(false);
         });
 
-        // Clean up the listener when component unmounts
         return () => unsubscribe();
     }, []);
 
@@ -214,13 +247,67 @@ const Home = () => {
         }, 0);
     };
 
+    // Filter and sort items
+    useEffect(() => {
+        if (!items || items.length === 0) {
+            setFilteredItems([]);
+            return;
+        }
+
+        let filtered = [...items];
+
+        // Search filter
+        if (searchQuery) {
+            filtered = filtered.filter(item =>
+                (item.title?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+                (item.description?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+                (item.location?.toLowerCase() || '').includes(searchQuery.toLowerCase())
+            );
+        }
+
+        // Category filter
+        if (selectedCategory) {
+            filtered = filtered.filter(item => item.category === selectedCategory);
+        }
+
+        // Sort
+        filtered.sort((a, b) => {
+            if (sortBy === 'latest') {
+                return b.date - a.date;
+            }
+            return a.date - b.date;
+        });
+
+        setFilteredItems(filtered);
+    }, [items, searchQuery, selectedCategory, sortBy]);
+
+    // Share functionality
+    const handleShare = (item) => {
+        if (!item) return;
+
+        const shareData = {
+            title: item.title || 'Shared Item',
+            text: `Check out this ${item.status || 'item'}: ${item.title || 'Untitled'}`,
+            url: window.location.href
+        };
+
+        if (navigator.share) {
+            navigator.share(shareData).catch(console.error);
+        } else {
+            setShowShareOptions(prev => ({
+                ...prev,
+                [item.id]: !prev[item.id]
+            }));
+        }
+    };
+
     return (
         <div className="home-container">
             <header>
                 <h1>Retrievio - Lost and Found</h1>
                 <div className="profile-dropdown">
                     <div className="profile-circle" onClick={toggleDropdown}>
-                        {user?.email[0].toUpperCase()}
+                        {user?.email?.[0]?.toUpperCase() || 'U'}
                     </div>
                     {showDropdown && (
                         <div className="dropdown-menu">
@@ -242,147 +329,140 @@ const Home = () => {
             </header>
 
             <div className="content">
-                <h2>Welcome back, {user?.email.split('@')[0]}</h2>
-
-                {loading ? (
-                    <div className="loading-container">
-                        <div className="loading-spinner"></div>
+                {/* Left Sidebar */}
+                <div className="sidebar">
+                    <div className="welcome-section">
+                        <h2>Welcome back, {user?.email ? user.email.split('@')[0] : 'User'}</h2>
                     </div>
-                ) : (
-                    <div className="items-grid">
-                    {items.length > 0 ? (
-                        items.map((item) => (
-                            <div key={item.id} id={`post-${item.id}`} className="item-card">
-                                    <div className="item-header">
-                                        <div className="item-info">
-                                            <span className={`status-badge ${item.isLost ? 'status-lost' : 'status-found'}`}>
-                                                {item.isLost ? 'Lost Item' : 'Found Item'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    
-                                    {(item.imageUrl || item.imageData) && (
+
+                    <div className="search-filter-container">
+                        <div className="search-bar">
+                            <input
+                                type="text"
+                                className="search-input"
+                                placeholder="Search lost or found items..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="category-tags">
+                            {categories.map(category => (
+                                <button
+                                    key={category.id}
+                                    className={`category-tag ${selectedCategory === category.id ? 'active' : ''}`}
+                                    onClick={() => setSelectedCategory(prev => prev === category.id ? '' : category.id)}
+                                >
+                                    <span>{category.icon}</span>
+                                    {category.name}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="filter-options">
+                            <div className="filter-group">
+                                <label className="filter-label">Sort By</label>
+                                <select
+                                    className="filter-select"
+                                    value={sortBy}
+                                    onChange={(e) => setSortBy(e.target.value)}
+                                >
+                                    <option value="latest">Latest First</option>
+                                    <option value="oldest">Oldest First</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Main Content Area */}
+                <div className="main-content">
+                    {loading ? (
+                        <div className="loading-container">
+                            <div className="loading-spinner"></div>
+                        </div>
+                    ) : (
+                        <div className="items-grid">
+                            {filteredItems && filteredItems.length > 0 ? (
+                                filteredItems.map((item) => item && (
+                                    <div key={item.id} id={`post-${item.id}`} className="item-card">
                                         <div className="item-image">
-                                            <img src={item.imageUrl || item.imageData} alt={item.itemName} />
-                                        </div>
-                                    )}
-                                    
-                                    <div className="item-content">
-                                        <div className="item-details">
-                                <h4>{item.itemName}</h4>
-                                <p>{item.description}</p>
-                                <p><strong>Location:</strong> {item.location}</p>
-                                            <p><strong>Date:</strong> {new Date(item.date).toLocaleDateString('en-US', {
-                                                year: 'numeric',
-                                                month: 'long',
-                                                day: 'numeric'
-                                            })}</p>
-                                        </div>
-                                        
-                                        <div className={`comments-section ${collapsedComments[item.id] ? '' : 'collapsed'}`}>
-                                            <div className={`comments-header ${!collapsedComments[item.id] ? 'collapsed' : ''}`}>
-                                                <div 
-                                                    className={`comments-toggle ${!collapsedComments[item.id] ? 'collapsed' : ''}`}
-                                                    onClick={() => toggleComments(item.id)}
+                                            <img 
+                                                src={item.image} 
+                                                alt={item.title} 
+                                                onError={(e) => {
+                                                    e.target.src = 'https://via.placeholder.com/300?text=No+Image';
+                                                }}
+                                            />
+                                            <div className="item-overlay">
+                                                <button 
+                                                    className="view-full-post"
+                                                    onClick={() => handleCommentClick(item)}
                                                 >
-                                                    <span className="toggle-icon">▼</span>
-                                                    <span>Comments</span>
-                                                    <span className="comments-count">
-                                                        ({getCommentsCount(item.comments)})
+                                                    <span>View Details</span>
+                                                    <i className="fas fa-arrow-right"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="item-content">
+                                            <div className="item-header">
+                                                <h3 className="item-title">{item.title}</h3>
+                                                <span className={`status-badge status-${item.status} ${item.urgency}`}>
+                                                    {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                                                </span>
+                                            </div>
+                                            <div className="item-details">
+                                                <p className="item-description">{item.description}</p>
+                                                <div className="item-info-grid">
+                                                    <div className="item-location">
+                                                        <i className="fas fa-map-marker-alt"></i>
+                                                        <span>{item.location}</span>
+                                                    </div>
+                                                    {item.lastSeen && (
+                                                        <div className="item-last-seen">
+                                                            <i className="fas fa-clock"></i>
+                                                            <span>Last seen: {item.lastSeen}</span>
+                                                        </div>
+                                                    )}
+                                                    {item.itemDetails.color && (
+                                                        <div className="item-color">
+                                                            <i className="fas fa-palette"></i>
+                                                            <span>Color: {item.itemDetails.color}</span>
+                                                        </div>
+                                                    )}
+                                                    {item.reward && item.status === 'lost' && (
+                                                        <div className="item-reward">
+                                                            <i className="fas fa-gift"></i>
+                                                            <span>Reward: {item.reward}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="item-footer">
+                                                <div className="item-contact">
+                                                    <button className="contact-button">
+                                                        <i className="fas fa-envelope"></i>
+                                                        Contact
+                                                    </button>
+                                                </div>
+                                                <div className="item-status-info">
+                                                    <span className={`claim-status ${item.claimStatus}`}>
+                                                        {item.claimStatus === 'unclaimed' ? 'Available' : 'In Process'}
                                                     </span>
                                                 </div>
                                             </div>
-
-                                            {collapsedComments[item.id] && (
-                                                <>
-                                                    <div className="comments-list">
-                                                        {item.comments?.map((comment, index) => (
-                                                            <div key={`${item.id}-comment-${index}`} className="comment">
-                                                                <div className="comment-header">
-                                                                    <p className="comment-user">{comment.userEmail.split('@')[0]}</p>
-                                                                    <div className="comment-actions">
-                                                                        <button 
-                                                                            className="reply-button" 
-                                                                            onClick={() => handleReply(item.id, comment.id)}
-                                                                        >
-                                                                            Reply
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                                <p className="comment-text">{comment.text}</p>
-                                                                <p className="comment-time">
-                                                                    {comment.timestamp?.toDate?.() 
-                                                                        ? comment.timestamp.toDate().toLocaleDateString('en-US', {
-                                                                            month: 'short',
-                                                                            day: 'numeric',
-                                                                            hour: '2-digit',
-                                                                            minute: '2-digit'
-                                                                        })
-                                                                        : new Date(comment.timestamp).toLocaleDateString('en-US', {
-                                                                            month: 'short',
-                                                                            day: 'numeric',
-                                                                            hour: '2-digit',
-                                                                            minute: '2-digit'
-                                                                        })}
-                                                                </p>
-                                                                
-                                                                {comment.replies && comment.replies.length > 0 && (
-                                                                    <div className="comment-replies">
-                                                                        {comment.replies.map(reply => (
-                                                                            <div key={reply.id} className="comment">
-                                                                                <div className="comment-header">
-                                                                                    <p className="comment-user">{reply.userEmail.split('@')[0]}</p>
-                                                                                </div>
-                                                                                <p className="comment-text">{reply.text}</p>
-                                                                                <p className="comment-time">
-                                                                                    {reply.timestamp?.toDate?.() 
-                                                                                        ? reply.timestamp.toDate().toLocaleDateString('en-US', {
-                                                                                            month: 'short',
-                                                                                            day: 'numeric',
-                                                                                            hour: '2-digit',
-                                                                                            minute: '2-digit'
-                                                                                        })
-                                                                                        : new Date(reply.timestamp).toLocaleDateString('en-US', {
-                                                                                            month: 'short',
-                                                                                            day: 'numeric',
-                                                                                            hour: '2-digit',
-                                                                                            minute: '2-digit'
-                                                                                        })}
-                                                                                </p>
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                    <div className={`add-comment ${!collapsedComments[item.id] ? 'collapsed' : ''}`}>
-                                                        <textarea
-                                                            placeholder={replyingTo && activePost === item.id ? 
-                                                                "Write a reply..." : "Write a comment..."}
-                                                            value={activePost === item.id ? commentText : ''}
-                                                            onChange={(e) => {
-                                                                setActivePost(item.id);
-                                                                setCommentText(e.target.value);
-                                                            }}
-                                                        />
-                                                        <button onClick={() => handleAddComment(item.id)}>
-                                                            {replyingTo && activePost === item.id ? 'Reply' : 'Post'}
-                                                        </button>
-                                                    </div>
-                                                </>
-                                            )}
                                         </div>
                                     </div>
-                            </div>
-                        ))
-                    ) : (
-                            <div className="no-items">
-                        <p>No items reported yet.</p>
-                            </div>
-                        )}
-                    </div>
-                )}
+                                ))
+                            ) : (
+                                <div className="no-results">
+                                    <h3>No items found</h3>
+                                    <p>Try adjusting your search or filters to find what you're looking for.</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Scroll to Top Button */}
@@ -396,34 +476,79 @@ const Home = () => {
 
             {/* Comment Modal */}
             <div className={`comment-modal-overlay ${modalActive ? 'active' : ''}`} onClick={closeModal}>
-                <div className="comment-modal ${modalActive ? 'active' : ''}" onClick={e => e.stopPropagation()}>
+                <div className="comment-modal" onClick={e => e.stopPropagation()}>
                     <div className="modal-header">
-                        <h3>{selectedItem?.itemName}</h3>
+                        <h3>{selectedItem?.title || 'Item Details'}</h3>
                         <button className="close-modal" onClick={closeModal}>&times;</button>
                     </div>
                     <div className="modal-content">
-                        <div className="modal-comments">
-                            {selectedItem?.comments?.map((comment, index) => (
-                                <div key={`${selectedItem.id}-comment-${index}`} className="comment">
-                                    <p className="comment-user">{comment.userEmail.split('@')[0]}</p>
-                                    <p className="comment-text">{comment.text}</p>
-                                    <p className="comment-time">
-                                        {comment.timestamp?.toDate?.() 
-                                            ? comment.timestamp.toDate().toLocaleDateString('en-US', {
-                                                month: 'short',
-                                                day: 'numeric',
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                            })
-                                            : new Date(comment.timestamp).toLocaleDateString('en-US', {
-                                                month: 'short',
-                                                day: 'numeric',
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                            })}
+                        <div className="modal-item-details">
+                            <div className="modal-image-container">
+                                <img 
+                                    src={selectedItem?.image || 'https://via.placeholder.com/300'} 
+                                    alt={selectedItem?.title || 'Item image'}
+                                    onError={(e) => {e.target.src = 'https://via.placeholder.com/300'}}
+                                />
+                                <span className={`status-badge status-${selectedItem?.status || 'unknown'}`}>
+                                    {(selectedItem?.status?.charAt(0).toUpperCase() + selectedItem?.status?.slice(1)) || 'Unknown'}
+                                </span>
+                            </div>
+                            <div className="modal-info">
+                                <div className="modal-title-section">
+                                    <h2>{selectedItem?.title || 'Untitled'}</h2>
+                                    <p className="modal-date">
+                                        {selectedItem?.date.toLocaleDateString('en-US', {
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric'
+                                        })}
                                     </p>
                                 </div>
-                            ))}
+                                <div className="modal-description">
+                                    <p>{selectedItem?.description || 'No description available'}</p>
+                                </div>
+                                <div className="modal-location">
+                                    <i className="fas fa-map-marker-alt"></i>
+                                    <span>{selectedItem?.location || 'Location not specified'}</span>
+                                </div>
+                                <div className="modal-category">
+                                    <i className="fas fa-tag"></i>
+                                    <span>{categories.find(cat => cat.id === selectedItem?.category)?.name || 'Other'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="modal-comments-section">
+                            <h4>Comments ({selectedItem?.comments?.length || 0})</h4>
+                            <div className="modal-comments">
+                                {selectedItem?.comments?.map((comment, index) => (
+                                    <div key={`${selectedItem.id}-comment-${index}`} className="comment">
+                                        <div className="comment-header">
+                                            <div className="comment-user-info">
+                                                <div className="comment-user-avatar">
+                                                    {comment.userEmail?.[0]?.toUpperCase() || '?'}
+                                                </div>
+                                                <p className="comment-user">{comment.userEmail?.split('@')[0]}</p>
+                                            </div>
+                                            <p className="comment-time">
+                                                {comment.timestamp instanceof Timestamp 
+                                                    ? comment.timestamp.toDate().toLocaleDateString('en-US', {
+                                                        month: 'short',
+                                                        day: 'numeric',
+                                                        hour: '2-digit',
+                                                        minute: '2-digit'
+                                                    })
+                                                    : new Date().toLocaleDateString('en-US', {
+                                                        month: 'short',
+                                                        day: 'numeric',
+                                                        hour: '2-digit',
+                                                        minute: '2-digit'
+                                                    })}
+                                            </p>
+                                        </div>
+                                        <p className="comment-text">{comment.text}</p>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                         <div className="comment-input-container">
                             {showEmojiPicker && (
