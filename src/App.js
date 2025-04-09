@@ -5,6 +5,7 @@ import Home from "./Home";
 import ReportLostItem from "./ReportLostItem";
 import ReportFoundItem from "./ReportFoundItem";
 import Settings from "./Settings"; // Import the new Settings component
+import Profile from "./Profile"; // Import Profile component
 import Auth from "./Auth";
 
 function App() {
@@ -30,6 +31,7 @@ function App() {
                 <Route path="/report-lost" element={user ? <ReportLostItem /> : <Navigate to="/" replace />} />
                 <Route path="/report-found" element={user ? <ReportFoundItem /> : <Navigate to="/" replace />} />
                 <Route path="/settings" element={user ? <Settings /> : <Navigate to="/" replace />} /> {/* New route */}
+                <Route path="/profile" element={user ? <Profile /> : <Navigate to="/" replace />} /> {/* Added Profile route */}
             </Routes>
         </Router>
     );
