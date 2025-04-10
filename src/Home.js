@@ -67,6 +67,7 @@ const Home = () => {
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [speechSynthesis, setSpeechSynthesis] = useState(null);
     const [hoveredItem, setHoveredItem] = useState(null);
+    const [selectedFilter, setSelectedFilter] = useState('');
 
     const suggestions = [
         'How do I report a lost item?',
@@ -399,21 +400,41 @@ const Home = () => {
             );
         }
 
-        // Category filter
+        // Status filters
+        if (selectedFilter === 'lost') {
+            filtered = filtered.filter(item => item.status === 'lost');
+        } else if (selectedFilter === 'found') {
+            filtered = filtered.filter(item => item.status === 'found');
+        } else if (selectedFilter === 'claimed') {
+            filtered = filtered.filter(item => item.status === 'claimed' || item.claimStatus === 'claimed');
+        } else if (selectedFilter === 'unclaimed') {
+            filtered = filtered.filter(item => item.status !== 'claimed' && item.claimStatus !== 'claimed');
+        }
+
+        // We still want to apply the selectedCategory filter if it exists
         if (selectedCategory) {
             filtered = filtered.filter(item => item.category === selectedCategory);
         }
 
-        // Sort
-        filtered.sort((a, b) => {
-            if (sortBy === 'latest') {
-                return b.date - a.date;
-            }
-            return a.date - b.date;
-        });
+        // Improved sorting logic with better date handling
+        if (selectedFilter === 'date_newest' || sortBy === 'latest') {
+            filtered.sort((a, b) => {
+                // First prioritize actual date objects from the timestamp
+                const dateA = a.date instanceof Date ? a.date : new Date(a.date || 0);
+                const dateB = b.date instanceof Date ? b.date : new Date(b.date || 0);
+                return dateB.getTime() - dateA.getTime(); // Newest first (descending)
+            });
+        } else if (selectedFilter === 'date_oldest' || sortBy === 'oldest') {
+            filtered.sort((a, b) => {
+                // First prioritize actual date objects from the timestamp
+                const dateA = a.date instanceof Date ? a.date : new Date(a.date || 0);
+                const dateB = b.date instanceof Date ? b.date : new Date(b.date || 0);
+                return dateA.getTime() - dateB.getTime(); // Oldest first (ascending)
+            });
+        }
 
         setFilteredItems(filtered);
-    }, [items, searchQuery, selectedCategory, sortBy]);
+    }, [items, searchQuery, selectedCategory, sortBy, selectedFilter]);
 
     // Share functionality
     const handleShare = (item) => {
@@ -1091,44 +1112,14 @@ What would you like to know more about?`;
                     {isAdmin && (
                         <button 
                             onClick={() => navigate('/admin')}
-                            style={{
-                                padding: '0.5rem 1rem',
-                                background: 'linear-gradient(135deg, #4a90e2, #357abd)',
-                                border: 'none',
-                                borderRadius: '8px',
-                                color: 'white',
-                                cursor: 'pointer',
-                                fontWeight: '500',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                transition: 'all 0.3s ease'
-                            }}
-                            onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                            className="admin-panel-btn"
                         >
-                            <span>👑</span> Admin Panel
+                            <i className="fas fa-crown"></i> Admin Panel
                         </button>
                     )}
                     <button 
                         onClick={handleSpeechToggle}
-                        style={{
-                            padding: '0.5rem 1rem',
-                            background: isSpeaking 
-                                ? 'linear-gradient(135deg, #ff6b6b, #ff8787)' 
-                                : 'linear-gradient(135deg, #6c5ce7, #a29bfe)',
-                            border: 'none',
-                            borderRadius: '8px',
-                            color: 'white',
-                            cursor: 'pointer',
-                            fontWeight: '500',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            transition: 'all 0.3s ease'
-                        }}
-                        onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                        onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                        className={`speech-btn ${isSpeaking ? 'active' : ''}`}
                     >
                         <FaVolumeUp /> {isSpeaking ? 'Stop Speech' : 'Start Speech'}
                     </button>
@@ -1168,29 +1159,56 @@ What would you like to know more about?`;
                         </div>
 
                         <div className="category-tags">
-                            {categories.map(category => (
-                                <button
-                                    key={category.id}
-                                    className={`category-tag ${selectedCategory === category.id ? 'active' : ''}`}
-                                    onClick={() => setSelectedCategory(prev => prev === category.id ? '' : category.id)}
-                                >
-                                    <span>{category.icon}</span>
-                                    {category.name}
-                                </button>
-                            ))}
-                        </div>
-
-                        <div className="filter-options">
-                            <div className="filter-group">
-                                <label className="filter-label">Sort By</label>
-                                <select
-                                    className="filter-select"
-                                    value={sortBy}
-                                    onChange={(e) => setSortBy(e.target.value)}
-                                >
-                                    <option value="latest">Latest First</option>
-                                    <option value="oldest">Oldest First</option>
-                                </select>
+                            <div 
+                                className={`category-tag ${!selectedFilter ? 'active' : ''}`} 
+                                onClick={() => {
+                                    setSelectedFilter('');
+                                    setSortBy('latest');
+                                }}
+                            >
+                                <i className="fas fa-layer-group"></i> All Items
+                            </div>
+                            <div 
+                                className={`category-tag ${selectedFilter === 'date_newest' ? 'active' : ''}`} 
+                                onClick={() => {
+                                    setSelectedFilter('date_newest');
+                                    setSortBy('latest');
+                                }}
+                            >
+                                <i className="fas fa-clock"></i> Newest First
+                            </div>
+                            <div 
+                                className={`category-tag ${selectedFilter === 'date_oldest' ? 'active' : ''}`} 
+                                onClick={() => {
+                                    setSelectedFilter('date_oldest');
+                                    setSortBy('oldest');
+                                }}
+                            >
+                                <i className="fas fa-history"></i> Oldest First
+                            </div>
+                            <div 
+                                className={`category-tag ${selectedFilter === 'lost' ? 'active' : ''}`} 
+                                onClick={() => setSelectedFilter('lost')}
+                            >
+                                <i className="fas fa-search"></i> Lost Items
+                            </div>
+                            <div 
+                                className={`category-tag ${selectedFilter === 'found' ? 'active' : ''}`} 
+                                onClick={() => setSelectedFilter('found')}
+                            >
+                                <i className="fas fa-check-circle"></i> Found Items
+                            </div>
+                            <div 
+                                className={`category-tag ${selectedFilter === 'claimed' ? 'active' : ''}`} 
+                                onClick={() => setSelectedFilter('claimed')}
+                            >
+                                <i className="fas fa-user-check"></i> Claimed Items
+                            </div>
+                            <div 
+                                className={`category-tag ${selectedFilter === 'unclaimed' ? 'active' : ''}`} 
+                                onClick={() => setSelectedFilter('unclaimed')}
+                            >
+                                <i className="fas fa-exclamation-circle"></i> Unclaimed
                             </div>
                         </div>
                     </div>
@@ -1251,12 +1269,14 @@ What would you like to know more about?`;
                                                         <i className="fas fa-map-marker-alt"></i>
                                                         <span>{item.location}</span>
                                                     </div>
-                                                    {item.lastSeen && (
-                                                        <div className="item-last-seen">
-                                                            <i className="fas fa-clock"></i>
-                                                            <span>Last seen: {item.lastSeen}</span>
-                                                        </div>
-                                                    )}
+                                                    <div className="item-category">
+                                                        <i className="fas fa-tag"></i>
+                                                        <span>Category: {item.category.charAt(0).toUpperCase() + item.category.slice(1)}</span>
+                                                    </div>
+                                                    <div className="item-date">
+                                                        <i className="fas fa-calendar-alt"></i>
+                                                        <span>Reported: {new Date(item.date).toLocaleDateString()}</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                             <div className="item-footer">
