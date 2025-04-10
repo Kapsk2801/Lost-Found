@@ -7,6 +7,7 @@ import ReportFoundItem from "./ReportFoundItem";
 import Settings from "./Settings"; // Import the new Settings component
 import Profile from "./Profile"; // Import Profile component
 import Auth from "./Auth";
+import AdminPanel from "./AdminPanel";
 
 function App() {
     const [user, setUser] = useState(null);
@@ -32,6 +33,7 @@ function App() {
                 <Route path="/report-found" element={user ? <ReportFoundItem /> : <Navigate to="/" replace />} />
                 <Route path="/settings" element={user ? <Settings /> : <Navigate to="/" replace />} /> {/* New route */}
                 <Route path="/profile" element={user ? <Profile /> : <Navigate to="/" replace />} /> {/* Added Profile route */}
+                <Route path="/admin" element={user ? <AdminPanel /> : <Navigate to="/" replace />} />
             </Routes>
         </Router>
     );

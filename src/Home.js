@@ -59,6 +59,7 @@ const Home = () => {
         itemDiscussion: null,
         userPreferences: {}
     });
+    const [isAdmin, setIsAdmin] = useState(false);
 
     const suggestions = [
         'How do I report a lost item?',
@@ -214,6 +215,18 @@ const Home = () => {
             }
         });
     }, [auth, navigate]);
+
+    useEffect(() => {
+        const checkAdminStatus = async () => {
+            if (auth.currentUser) {
+                const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+                if (userDoc.exists()) {
+                    setIsAdmin(userDoc.data().isAdmin === true);
+                }
+            }
+        };
+        checkAdminStatus();
+    }, [auth.currentUser]);
 
     const handleLogout = () => {
         signOut(auth).then(() => navigate("/"));
@@ -898,29 +911,53 @@ What would you like to know more about?`;
         <div className="home-container">
             <header>
                 <h1>Retrievio - Lost and Found</h1>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    {isAdmin && (
+                        <button 
+                            onClick={() => navigate('/admin')}
+                            style={{
+                                padding: '0.5rem 1rem',
+                                background: 'linear-gradient(135deg, #4a90e2, #357abd)',
+                                border: 'none',
+                                borderRadius: '8px',
+                                color: 'white',
+                                cursor: 'pointer',
+                                fontWeight: '500',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                transition: 'all 0.3s ease'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                        >
+                            <span>👑</span> Admin Panel
+                        </button>
+                    )}
                 <div className="profile-dropdown">
                     <div className="profile-circle" onClick={toggleDropdown}>
-                        {userProfile?.firstName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
+                            {userProfile?.firstName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
                     </div>
                     {showDropdown && (
                         <div className="dropdown-menu">
-                            <button onClick={() => navigate("/profile")}>
-                                My Profile
-                            </button>
-                            <button onClick={() => navigate("/report-lost")}>
-                                Report Lost Item
-                            </button>
-                            <button onClick={() => navigate("/report-found")}>
-                                Report Found Item
-                            </button>
-                            <button onClick={() => navigate("/settings")}>
-                                Settings
-                            </button>
-                            <button onClick={handleLogout}>
-                                Logout
-                            </button>
+                                <button onClick={() => navigate("/profile")}>
+                                    My Profile
+                                </button>
+                                <button onClick={() => navigate("/report-lost")}>
+                                    Report Lost Item
+                                </button>
+                                <button onClick={() => navigate("/report-found")}>
+                                    Report Found Item
+                                </button>
+                                <button onClick={() => navigate("/settings")}>
+                                    Settings
+                                </button>
+                                <button onClick={handleLogout}>
+                                    Logout
+                                </button>
                         </div>
                     )}
+                    </div>
                 </div>
             </header>
 
