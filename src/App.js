@@ -8,6 +8,7 @@ import Settings from "./Settings"; // Import the new Settings component
 import Profile from "./Profile"; // Import Profile component
 import Auth from "./Auth";
 import AdminPanel from "./AdminPanel";
+import NotificationSystem from "./components/NotificationSystem";
 
 function App() {
     const [user, setUser] = useState(null);
@@ -26,6 +27,7 @@ function App() {
 
     return (
         <Router>
+            {user && <NotificationSystem user={user} />}
             <Routes>
                 <Route path="/" element={user ? <Navigate to="/home" replace /> : <Auth />} />
                 <Route path="/home" element={user ? <Home /> : <Navigate to="/" replace />} />

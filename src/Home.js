@@ -7,8 +7,10 @@ import EmojiPicker from 'emoji-picker-react';
 import "./Home.css";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { FaRobot, FaTimes, FaTrash, FaSpinner, FaSync, FaCopy, FaVolumeUp } from 'react-icons/fa';
+import { FaRobot, FaTimes, FaTrash, FaSpinner, FaSync, FaCopy, FaVolumeUp, FaShare } from 'react-icons/fa';
 import ScreenReader from './ScreenReader';
+import NotificationSystem from './components/NotificationSystem';
+import ChatSystem from './components/ChatSystem';
 
 // Category icons and data
 const categories = [
@@ -39,7 +41,6 @@ const Home = () => {
     const [collapsedComments, setCollapsedComments] = useState({});
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
-    const [sortBy, setSortBy] = useState('latest');
     const [filteredItems, setFilteredItems] = useState([]);
     const [showShareOptions, setShowShareOptions] = useState({});
     const [selectedPost, setSelectedPost] = useState(null);
@@ -391,6 +392,14 @@ const Home = () => {
 
         let filtered = [...items];
 
+        // Hide claimed items by default unless the claimed filter is selected
+        if (selectedFilter !== 'claimed') {
+            filtered = filtered.filter(item => 
+                item.status !== 'claimed' && 
+                item.claimStatus !== 'claimed'
+            );
+        }
+
         // Search filter
         if (searchQuery) {
             filtered = filtered.filter(item =>
@@ -411,48 +420,59 @@ const Home = () => {
             filtered = filtered.filter(item => item.status !== 'claimed' && item.claimStatus !== 'claimed');
         }
 
-        // We still want to apply the selectedCategory filter if it exists
+        // Category filter
         if (selectedCategory) {
             filtered = filtered.filter(item => item.category === selectedCategory);
         }
 
-        // Improved sorting logic with better date handling
-        if (selectedFilter === 'date_newest' || sortBy === 'latest') {
-            filtered.sort((a, b) => {
-                // First prioritize actual date objects from the timestamp
-                const dateA = a.date instanceof Date ? a.date : new Date(a.date || 0);
-                const dateB = b.date instanceof Date ? b.date : new Date(b.date || 0);
-                return dateB.getTime() - dateA.getTime(); // Newest first (descending)
-            });
-        } else if (selectedFilter === 'date_oldest' || sortBy === 'oldest') {
-            filtered.sort((a, b) => {
-                // First prioritize actual date objects from the timestamp
-                const dateA = a.date instanceof Date ? a.date : new Date(a.date || 0);
-                const dateB = b.date instanceof Date ? b.date : new Date(b.date || 0);
-                return dateA.getTime() - dateB.getTime(); // Oldest first (ascending)
-            });
-        }
+        // Sort by timestamp (newest first by default)
+        filtered.sort((a, b) => {
+            const dateA = a.date instanceof Date ? a.date : new Date(a.date || 0);
+            const dateB = b.date instanceof Date ? b.date : new Date(b.date || 0);
+            return dateB.getTime() - dateA.getTime();
+        });
 
         setFilteredItems(filtered);
-    }, [items, searchQuery, selectedCategory, sortBy, selectedFilter]);
+    }, [items, searchQuery, selectedCategory, selectedFilter]);
 
     // Share functionality
-    const handleShare = (item) => {
-        if (!item) return;
+    const handleShare = async (item) => {
+        if (!user) {
+            toast.error('Please login to share posts');
+            return;
+        }
 
-        const shareData = {
-            title: item.title || 'Shared Item',
-            text: `Check out this ${item.status || 'item'}: ${item.title || 'Untitled'}`,
-            url: window.location.href
-        };
+        try {
+            // Create a shared post message
+            const sharedPost = {
+                title: item.title,
+                description: item.description,
+                status: item.status,
+                category: item.category,
+                location: item.location,
+                image: item.image,
+                timestamp: new Date().toISOString()
+            };
 
-        if (navigator.share) {
-            navigator.share(shareData).catch(console.error);
-        } else {
-            setShowShareOptions(prev => ({
-                ...prev,
-                [item.id]: !prev[item.id]
-            }));
+            // Add the shared post to chat messages
+            setChatMessages(prev => [...prev, {
+                sender: 'user',
+                text: `Shared item: ${item.title}`,
+                sharedPost: sharedPost
+            }]);
+
+            // Add a bot response
+            setTimeout(() => {
+                setChatMessages(prev => [...prev, {
+                    sender: 'bot',
+                    text: `I've shared "${item.title}" in the chat. You can discuss this item with other users.`
+                }]);
+            }, 500);
+
+            toast.success('Item shared in chat');
+        } catch (error) {
+            console.error('Error sharing post:', error);
+            toast.error('Failed to share post');
         }
     };
 
@@ -1123,6 +1143,7 @@ What would you like to know more about?`;
                     >
                         <FaVolumeUp /> {isSpeaking ? 'Stop Speech' : 'Start Speech'}
                     </button>
+                    <NotificationSystem user={auth.currentUser} />
                 <div className="profile-dropdown">
                     <div className="profile-circle" onClick={toggleDropdown}>
                             {userProfile?.firstName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
@@ -1144,7 +1165,7 @@ What would you like to know more about?`;
                 {/* Left Sidebar */}
                 <div className="sidebar">
                     <div className="welcome-section">
-                        <h2>Welcome back, {userProfile?.firstName || 'User'}</h2>
+                        <h2>Welcome back{userProfile?.firstName ? `, ${userProfile.firstName}` : ''}</h2>
                     </div>
 
                     <div className="search-filter-container">
@@ -1161,30 +1182,9 @@ What would you like to know more about?`;
                         <div className="category-tags">
                             <div 
                                 className={`category-tag ${!selectedFilter ? 'active' : ''}`} 
-                                onClick={() => {
-                                    setSelectedFilter('');
-                                    setSortBy('latest');
-                                }}
+                                onClick={() => setSelectedFilter('')}
                             >
                                 <i className="fas fa-layer-group"></i> All Items
-                            </div>
-                            <div 
-                                className={`category-tag ${selectedFilter === 'date_newest' ? 'active' : ''}`} 
-                                onClick={() => {
-                                    setSelectedFilter('date_newest');
-                                    setSortBy('latest');
-                                }}
-                            >
-                                <i className="fas fa-clock"></i> Newest First
-                            </div>
-                            <div 
-                                className={`category-tag ${selectedFilter === 'date_oldest' ? 'active' : ''}`} 
-                                onClick={() => {
-                                    setSelectedFilter('date_oldest');
-                                    setSortBy('oldest');
-                                }}
-                            >
-                                <i className="fas fa-history"></i> Oldest First
                             </div>
                             <div 
                                 className={`category-tag ${selectedFilter === 'lost' ? 'active' : ''}`} 
@@ -1297,6 +1297,13 @@ What would you like to know more about?`;
                                                     >
                                                         <i className="fas fa-envelope"></i>
                                                         Contact
+                                                    </button>
+                                                    <button
+                                                        className="share-button"
+                                                        onClick={() => handleShare(item)}
+                                                        aria-label="Share item"
+                                                    >
+                                                        <FaShare />
                                                     </button>
                                                 </div>
                                             </div>
@@ -1662,7 +1669,9 @@ What would you like to know more about?`;
                 </div>
             )}
 
-            {/* Add ToastContainer at the end of the component */}
+            {/* Add ChatSystem component before the closing div */}
+            {user && <ChatSystem user={user} isAdmin={isAdmin} />}
+            
             <ToastContainer
                 position="top-right"
                 autoClose={3000}

@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { getAuth } from 'firebase/auth';
 import { isAdmin } from './firebase';
 import { db } from './firebase';
-import { collection, query, where, getDocs, updateDoc, doc, getDoc, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, updateDoc, doc, getDoc, orderBy, limit, addDoc } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './AdminPanel.css';
+import ChatSystem from './components/ChatSystem';
+import { ToastContainer } from 'react-toastify';
 
 const AdminPanel = () => {
   const navigate = useNavigate();
@@ -260,6 +262,8 @@ const AdminPanel = () => {
         setLoading(false);
         return;
       }
+
+      const itemData = itemDoc.data();
       
       // Process the claim based on the action
       if (action === 'approve') {
@@ -281,6 +285,17 @@ const AdminPanel = () => {
           claimApprovedAt: new Date(),
           lastUpdated: new Date()
         });
+
+        // Create notification for the user
+        const userNotificationRef = collection(db, 'notifications');
+        await addDoc(userNotificationRef, {
+          userId: claimData.userId,
+          message: `Your claim for ${itemData.name || 'the item'} has been approved! You can now collect it.`,
+          type: 'claim_approved',
+          itemId: itemId,
+          timestamp: new Date(),
+          read: false
+        });
         
         toast.success('Claim approved successfully');
       } else if (action === 'reject') {
@@ -300,6 +315,17 @@ const AdminPanel = () => {
           claimedBy: null,
           claimId: null,
           lastUpdated: new Date()
+        });
+
+        // Create notification for the user
+        const userNotificationRef = collection(db, 'notifications');
+        await addDoc(userNotificationRef, {
+          userId: claimData.userId,
+          message: `Your claim for ${itemData.name || 'the item'} has been rejected. The item is now available for others to claim.`,
+          type: 'claim_rejected',
+          itemId: itemId,
+          timestamp: new Date(),
+          read: false
         });
         
         toast.success('Claim rejected successfully');
@@ -526,6 +552,22 @@ const AdminPanel = () => {
           </div>
         )}
       </div>
+
+      {/* Add ChatSystem component before the closing div */}
+      {auth.currentUser && <ChatSystem user={auth.currentUser} isAdmin={true} />}
+      
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="dark"
+      />
     </div>
   );
 };
