@@ -7,7 +7,8 @@ import EmojiPicker from 'emoji-picker-react';
 import "./Home.css";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { FaRobot, FaTimes, FaTrash, FaSpinner, FaSync, FaCopy, FaVolumeUp, FaVolumeMute } from 'react-icons/fa';
+import { FaRobot, FaTimes, FaTrash, FaSpinner, FaSync, FaCopy, FaVolumeUp } from 'react-icons/fa';
+import ScreenReader from './ScreenReader';
 
 // Category icons and data
 const categories = [
@@ -65,7 +66,7 @@ const Home = () => {
     const [showAiFeature, setShowAiFeature] = useState(false);
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [speechSynthesis, setSpeechSynthesis] = useState(null);
-    const [isScreenReaderEnabled, setIsScreenReaderEnabled] = useState(false);
+    const [hoveredItem, setHoveredItem] = useState(null);
 
     const suggestions = [
         'How do I report a lost item?',
@@ -1025,6 +1026,11 @@ What would you like to know more about?`;
     };
 
     useEffect(() => {
+        // Initialize speech synthesis
+        if (window.speechSynthesis) {
+            setSpeechSynthesis(window.speechSynthesis);
+        }
+        
         // Cleanup function to stop speaking when component unmounts
         return () => {
             if (window.speechSynthesis) {
@@ -1033,74 +1039,118 @@ What would you like to know more about?`;
         };
     }, []);
 
-    const handlePostHover = (item, isEntering) => {
-        if (!isScreenReaderEnabled || !window.speechSynthesis) return;
-        
-        if (!isEntering) {
-            window.speechSynthesis.cancel();
-            setIsSpeaking(false);
+    const handleSpeechToggle = () => {
+        if (!speechSynthesis) {
+            toast.error('Speech synthesis not supported in your browser');
             return;
         }
 
-        // Cancel any ongoing speech
-        window.speechSynthesis.cancel();
+        if (isSpeaking) {
+            speechSynthesis.cancel();
+            setIsSpeaking(false);
+        } else {
+            // Start speaking all item descriptions
+            filteredItems.forEach(item => {
+                if (item) {
+                    const utterance = new SpeechSynthesisUtterance(
+                        `${item.title}. ${item.description}. Located at ${item.location}. Status: ${item.status}.`
+                    );
+                    speechSynthesis.speak(utterance);
+                }
+            });
+            setIsSpeaking(true);
+        }
+    };
 
-        // Create descriptive text for the item
-        const descriptionText = `
-            ${item.title || 'Untitled item'}. 
-            This item is currently ${item.status}.
-            Category: ${item.category || 'Not specified'}.
-            Location: ${item.location || 'Not specified'}.
-            ${item.description ? `Description: ${item.description}.` : ''}
-            ${item.claimStatus === 'unclaimed' ? 'This item is available for claiming.' : 
-              item.claimStatus === 'pending' ? 'This item has a pending claim.' :
-              'This item has been claimed.'
-            }
-            Use your arrow keys to navigate. Press Enter to view details.
-        `;
+    const handleItemHover = (item) => {
+        if (!speechSynthesis || !isSpeaking) {
+            return;
+        }
 
-        const utterance = new SpeechSynthesisUtterance(descriptionText);
-        utterance.rate = 1.0;
-        utterance.pitch = 1.0;
-        utterance.volume = 1.0;
-        utterance.onend = () => setIsSpeaking(false);
-        utterance.onerror = () => setIsSpeaking(false);
+        setHoveredItem(item);
+        speechSynthesis.cancel(); // Cancel any ongoing speech
 
-        setIsSpeaking(true);
-        window.speechSynthesis.speak(utterance);
+        const utterance = new SpeechSynthesisUtterance(
+            `${item.title}. ${item.description}. Located at ${item.location}. Status: ${item.status}.`
+        );
+        speechSynthesis.speak(utterance);
+    };
+
+    const handleItemLeave = () => {
+        if (speechSynthesis) {
+            speechSynthesis.cancel();
+        }
+        setHoveredItem(null);
     };
 
     return (
         <div className="home-container">
             <header>
-                <h1>Lost & Found</h1>
-                <div className="header-actions">
-                    <button
-                        className="screen-reader-toggle"
-                        onClick={() => setIsScreenReaderEnabled(!isScreenReaderEnabled)}
-                        aria-label="Toggle screen reader"
-                        title="Toggle screen reader"
+                <h1>Retrievio - Lost and Found</h1>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    {isAdmin && (
+                        <button 
+                            onClick={() => navigate('/admin')}
+                            style={{
+                                padding: '0.5rem 1rem',
+                                background: 'linear-gradient(135deg, #4a90e2, #357abd)',
+                                border: 'none',
+                                borderRadius: '8px',
+                                color: 'white',
+                                cursor: 'pointer',
+                                fontWeight: '500',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                transition: 'all 0.3s ease'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                            onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                        >
+                            <span>👑</span> Admin Panel
+                        </button>
+                    )}
+                    <button 
+                        onClick={handleSpeechToggle}
+                        style={{
+                            padding: '0.5rem 1rem',
+                            background: isSpeaking 
+                                ? 'linear-gradient(135deg, #ff6b6b, #ff8787)' 
+                                : 'linear-gradient(135deg, #6c5ce7, #a29bfe)',
+                            border: 'none',
+                            borderRadius: '8px',
+                            color: 'white',
+                            cursor: 'pointer',
+                            fontWeight: '500',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            transition: 'all 0.3s ease'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                        onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                     >
-                        {isScreenReaderEnabled ? <FaVolumeUp /> : <FaVolumeMute />}
+                        <FaVolumeUp /> {isSpeaking ? 'Stop Speech' : 'Start Speech'}
                     </button>
-                    <div className="profile-dropdown">
-                        <div className="profile-circle" onClick={toggleDropdown}>
+                <div className="profile-dropdown">
+                    <div className="profile-circle" onClick={toggleDropdown}>
                             {userProfile?.firstName?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
-                        </div>
-                        {showDropdown && (
-                            <div className="dropdown-menu">
+                    </div>
+                    {showDropdown && (
+                        <div className="dropdown-menu">
                                 <button onClick={() => navigate("/profile")}>My Profile</button>
-                                <button onClick={() => navigate("/report-lost")}>Report Lost Item</button>
-                                <button onClick={() => navigate("/report-found")}>Report Found Item</button>
+                            <button onClick={() => navigate("/report-lost")}>Report Lost Item</button>
+                            <button onClick={() => navigate("/report-found")}>Report Found Item</button>
                                 <button onClick={() => navigate("/settings")}>Settings</button>
-                                <button onClick={handleLogout}>Logout</button>
-                            </div>
-                        )}
+                            <button onClick={handleLogout}>Logout</button>
+                        </div>
+                    )}
                     </div>
                 </div>
             </header>
 
             <div className="content">
+                {/* Left Sidebar */}
                 <div className="sidebar">
                     <div className="welcome-section">
                         <h2>Welcome back, {userProfile?.firstName || 'User'}</h2>
@@ -1145,223 +1195,230 @@ What would you like to know more about?`;
                         </div>
                     </div>
                 </div>
+
+                {/* Main Content Area */}
                 <div className="main-content">
-                    <div className="items-grid">
-                        {filteredItems && filteredItems.length > 0 ? (
-                            filteredItems.map((item) => item && (
-                                <div 
-                                    key={item.id} 
-                                    className={`item-card ${isSpeaking ? 'speaking' : ''}`}
-                                    onMouseEnter={() => handlePostHover(item, true)}
-                                    onMouseLeave={() => handlePostHover(item, false)}
-                                    onFocus={() => handlePostHover(item, true)}
-                                    onBlur={() => handlePostHover(item, false)}
-                                    tabIndex="0"
-                                    role="article"
-                                    aria-label={`${item.title || 'Untitled item'} - ${item.status}`}
-                                >
-                                    {isSpeaking && isScreenReaderEnabled && (
-                                        <div className="screen-reader-indicator" aria-hidden="true">
-                                            <FaVolumeUp className="sr-icon" />
+                    {loading ? (
+                        <div className="loading-container">
+                            <div className="loading-spinner"></div>
+                        </div>
+                    ) : (
+                        <div className="items-grid">
+                            {filteredItems && filteredItems.length > 0 ? (
+                                filteredItems.map((item) => (
+                                    <div 
+                                        key={item.id} 
+                                        id={`post-${item.id}`} 
+                                        className="item-card"
+                                        onMouseEnter={() => handleItemHover(item)}
+                                        onMouseLeave={handleItemLeave}
+                                    >
+                                        <ScreenReader item={item} />
+                                        <div className="item-image">
+                                            <img 
+                                                src={item.image} 
+                                                alt={item.title} 
+                                                onError={(e) => {
+                                                    e.target.src = 'https://via.placeholder.com/300?text=No+Image';
+                                                }}
+                                            />
+                                            <div className="item-overlay">
+                                                <button 
+                                                    className="view-details-btn"
+                                                    onClick={() => handleViewDetails(item)}
+                                                >
+                                                    <span>View Details</span>
+                                                    <i className="fas fa-arrow-right"></i>
+                                                </button>
+                                            </div>
                                         </div>
-                                    )}
-                                    <div className="item-image">
-                                        <img 
-                                            src={item.image} 
-                                            alt={item.title} 
-                                            onError={(e) => {
-                                                e.target.src = 'https://via.placeholder.com/300?text=No+Image';
-                                            }}
-                                        />
-                                        <div className="item-overlay">
-                                            <button 
-                                                className="view-details-btn"
-                                                onClick={() => handleViewDetails(item)}
-                                            >
-                                                <span>View Details</span>
-                                                <i className="fas fa-arrow-right"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div className="item-content">
-                                        <div className="item-header">
-                                            <h3 className="item-title">{item.title}</h3>
-                                            <span className={`status-badge status-${item.status}`}>
-                                                {item.status === 'lost' ? 'Lost' :
-                                                 item.status === 'found' ? 'Found' :
-                                                 item.status === 'available' ? 'Available' :
-                                                 item.status === 'claimed' ? 'Claimed' :
-                                                 item.status === 'reported' ? 'Reported' :
-                                                 item.status === 'pending' ? 'Pending' : 'Processing'}
-                                            </span>
-                                        </div>
-                                        <div className="item-details">
-                                            <p className="item-description">{item.description}</p>
-                                            <div className="item-info-grid">
-                                                <div className="item-location">
-                                                    <i className="fas fa-map-marker-alt"></i>
-                                                    <span>{item.location}</span>
-                                                </div>
-                                                {item.lastSeen && (
-                                                    <div className="item-last-seen">
-                                                        <i className="fas fa-clock"></i>
-                                                        <span>Last seen: {item.lastSeen}</span>
+                                        <div className="item-content">
+                                            <div className="item-header">
+                                                <h3 className="item-title">{item.title}</h3>
+                                                <span className={`status-badge status-${item.status}`}>
+                                                    {item.status === 'lost' ? 'Lost' :
+                                                     item.status === 'found' ? 'Found' :
+                                                     item.status === 'available' ? 'Available' :
+                                                     item.status === 'claimed' ? 'Claimed' :
+                                                     item.status === 'reported' ? 'Reported' :
+                                                     item.status === 'pending' ? 'Pending' : 'Processing'}
+                                                </span>
+                                            </div>
+                                            <div className="item-details">
+                                                <p className="item-description">{item.description}</p>
+                                                <div className="item-info-grid">
+                                                    <div className="item-location">
+                                                        <i className="fas fa-map-marker-alt"></i>
+                                                        <span>{item.location}</span>
                                                     </div>
-                                                )}
+                                                    {item.lastSeen && (
+                                                        <div className="item-last-seen">
+                                                            <i className="fas fa-clock"></i>
+                                                            <span>Last seen: {item.lastSeen}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="item-footer">
+                                                <div className="item-actions">
+                                                    <button 
+                                                        className="ai-analysis-button"
+                                                        onClick={() => {
+                                                            analyzeItemRecovery(item);
+                                                            setShowAiAnalysis(true);
+                                                        }}
+                                                    >
+                                                        <i className="fas fa-robot"></i>
+                                                        AI Analysis
+                                                    </button>
+                                                    <button 
+                                                        className={`contact-button ${item.claimStatus === 'inProcess' ? 'in-process' : ''}`}
+                                                        onClick={() => handleContact(item)}
+                                                    >
+                                                        <i className="fas fa-envelope"></i>
+                                                        Contact
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
-                                        <div className="item-footer">
-                                            <div className="item-actions">
-                                                <button 
-                                                    className="ai-analysis-button"
-                                                    onClick={() => {
-                                                        analyzeItemRecovery(item);
-                                                        setShowAiAnalysis(true);
-                                                    }}
-                                                >
-                                                    <i className="fas fa-robot"></i>
-                                                    AI Analysis
-                                                </button>
-                                                <button 
-                                                    className={`contact-button ${item.claimStatus === 'inProcess' ? 'in-process' : ''}`}
-                                                    onClick={() => handleContact(item)}
-                                                >
-                                                    <i className="fas fa-envelope"></i>
-                                                    Contact
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                            <div className="no-results">
-                                <h3>No items found</h3>
-                                <p>Try adjusting your search or filters</p>
                             </div>
-                        )}
+                        ))
+                    ) : (
+                                <div className="no-results">
+                                    <h3>No items found</h3>
+                                    <p>Try adjusting your search or filters to find what you're looking for.</p>
+                                </div>
+                    )}
+                </div>
+                    )}
+            </div>
+            </div>
+
+            {/* Scroll to Top Button */}
+            <button 
+                className={`scroll-to-top ${showScrollTop ? 'visible' : ''}`}
+                onClick={scrollToTop}
+                aria-label="Scroll to top"
+            >
+                ↑
+            </button>
+
+            {/* Comment Modal */}
+            <div className={`comment-modal-overlay ${modalActive ? 'active' : ''}`} onClick={handleCloseModal}>
+                <div className="comment-modal" onClick={e => e.stopPropagation()}>
+                    <div className="modal-header">
+                        <h3>{selectedItem?.title || 'Item Details'}</h3>
+                        <button className="close-modal" onClick={handleCloseModal} aria-label="Close modal"></button>
+                    </div>
+                    <div className="modal-content">
+                        <div className="modal-item-details">
+                            <div className="modal-image-container">
+                                <img 
+                                    src={selectedItem?.image || 'https://via.placeholder.com/300'} 
+                                    alt={selectedItem?.title || 'Item image'}
+                                    onError={(e) => {e.target.src = 'https://via.placeholder.com/300'}}
+                                />
+                                <span className={`status-badge status-${selectedItem?.status || 'unknown'}`}>
+                                    {(selectedItem?.status?.charAt(0).toUpperCase() + selectedItem?.status?.slice(1)) || 'Unknown'}
+                                </span>
+                            </div>
+                            <div className="modal-info">
+                                <div className="modal-title-section">
+                                    <h2>{selectedItem?.title || 'Untitled'}</h2>
+                                    <p className="modal-date">
+                                        {selectedItem?.date.toLocaleDateString('en-US', {
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric'
+                                        })}
+                                    </p>
+                                </div>
+                                <div className="modal-description">
+                                    <p>{selectedItem?.description || 'No description available'}</p>
+                                </div>
+                                <div className="modal-location">
+                                    <i className="fas fa-map-marker-alt"></i>
+                                    <span>{selectedItem?.location || 'Location not specified'}</span>
+                                </div>
+                                <div className="modal-category">
+                                    <i className="fas fa-tag"></i>
+                                    <span>{categories.find(cat => cat.id === selectedItem?.category)?.name || 'Other'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="modal-comments-section">
+                            <h4>Comments ({selectedItem?.comments?.length || 0})</h4>
+                            <div className="modal-comments">
+                                {selectedItem?.comments?.map((comment, index) => (
+                                    <div key={`${selectedItem.id}-comment-${index}`} className="comment">
+                                        <div className="comment-header">
+                                            <div className="comment-user-info">
+                                                <div className="comment-user-avatar">
+                                                    {comment.userEmail?.[0]?.toUpperCase() || '?'}
+                                                </div>
+                                                <p className="comment-user">{comment.userEmail?.split('@')[0]}</p>
+                                            </div>
+                                            <p className="comment-time">
+                                                {comment.timestamp instanceof Timestamp 
+                                                    ? comment.timestamp.toDate().toLocaleDateString('en-US', {
+                                                        month: 'short',
+                                                        day: 'numeric',
+                                                        hour: '2-digit',
+                                                        minute: '2-digit'
+                                                    })
+                                                    : new Date().toLocaleDateString('en-US', {
+                                                        month: 'short',
+                                                        day: 'numeric',
+                                                        hour: '2-digit',
+                                                        minute: '2-digit'
+                                                    })}
+                                            </p>
+                                        </div>
+                                        <p className="comment-text">{comment.text}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="comment-input-container">
+                            {showEmojiPicker && (
+                                <div className="emoji-picker-container">
+                                    <EmojiPicker
+                                        onEmojiClick={onEmojiClick}
+                                        theme="dark"
+                                        width={300}
+                                    />
+                                </div>
+                            )}
+                            <button 
+                                className="emoji-trigger"
+                                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                            >
+                                😊
+                            </button>
+                            <textarea
+                                placeholder="Write a comment..."
+                                value={newComment}
+                                onChange={(e) => setNewComment(e.target.value)}
+                                onKeyPress={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        if (newComment.trim()) {
+                                            handleAddComment();
+                                        }
+                                    }
+                                }}
+                            />
+                            <button 
+                                className="post-comment-btn"
+                                onClick={handleAddComment}
+                                disabled={!newComment.trim()}
+                            >
+                                Post
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
-
-            {/* Modals and UI Components */}
-            {modalActive && (
-                <div className="comment-modal-overlay" onClick={handleCloseModal}>
-                    <div className="comment-modal" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h3>{selectedItem?.title || 'Item Details'}</h3>
-                            <button className="close-modal" onClick={handleCloseModal} aria-label="Close modal"></button>
-                        </div>
-                        <div className="modal-content">
-                            <div className="modal-item-details">
-                                <div className="modal-image-container">
-                                    <img 
-                                        src={selectedItem?.image || 'https://via.placeholder.com/300'} 
-                                        alt={selectedItem?.title || 'Item image'}
-                                        onError={(e) => {e.target.src = 'https://via.placeholder.com/300'}}
-                                    />
-                                    <span className={`status-badge status-${selectedItem?.status || 'unknown'}`}>
-                                        {(selectedItem?.status?.charAt(0).toUpperCase() + selectedItem?.status?.slice(1)) || 'Unknown'}
-                                    </span>
-                                </div>
-                                <div className="modal-info">
-                                    <div className="modal-title-section">
-                                        <h2>{selectedItem?.title || 'Untitled'}</h2>
-                                        <p className="modal-date">
-                                            {selectedItem?.date.toLocaleDateString('en-US', {
-                                                year: 'numeric',
-                                                month: 'long',
-                                                day: 'numeric'
-                                            })}
-                                        </p>
-                                    </div>
-                                    <div className="modal-description">
-                                        <p>{selectedItem?.description || 'No description available'}</p>
-                                    </div>
-                                    <div className="modal-location">
-                                        <i className="fas fa-map-marker-alt"></i>
-                                        <span>{selectedItem?.location || 'Location not specified'}</span>
-                                    </div>
-                                    <div className="modal-category">
-                                        <i className="fas fa-tag"></i>
-                                        <span>{categories.find(cat => cat.id === selectedItem?.category)?.name || 'Other'}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="modal-comments-section">
-                                <h4>Comments ({selectedItem?.comments?.length || 0})</h4>
-                                <div className="modal-comments">
-                                    {selectedItem?.comments?.map((comment, index) => (
-                                        <div key={`${selectedItem.id}-comment-${index}`} className="comment">
-                                            <div className="comment-header">
-                                                <div className="comment-user-info">
-                                                    <div className="comment-user-avatar">
-                                                        {comment.userEmail?.[0]?.toUpperCase() || '?'}
-                                                    </div>
-                                                    <p className="comment-user">{comment.userEmail?.split('@')[0]}</p>
-                                                </div>
-                                                <p className="comment-time">
-                                                    {comment.timestamp instanceof Timestamp 
-                                                        ? comment.timestamp.toDate().toLocaleDateString('en-US', {
-                                                            month: 'short',
-                                                            day: 'numeric',
-                                                            hour: '2-digit',
-                                                            minute: '2-digit'
-                                                        })
-                                                        : new Date().toLocaleDateString('en-US', {
-                                                            month: 'short',
-                                                            day: 'numeric',
-                                                            hour: '2-digit',
-                                                            minute: '2-digit'
-                                                        })}
-                                                </p>
-                                            </div>
-                                            <p className="comment-text">{comment.text}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="comment-input-container">
-                                {showEmojiPicker && (
-                                    <div className="emoji-picker-container">
-                                        <EmojiPicker
-                                            onEmojiClick={onEmojiClick}
-                                            theme="dark"
-                                            width={300}
-                                        />
-                                    </div>
-                                )}
-                                <button 
-                                    className="emoji-trigger"
-                                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                                >
-                                    😊
-                                </button>
-                                <textarea
-                                    placeholder="Write a comment..."
-                                    value={newComment}
-                                    onChange={(e) => setNewComment(e.target.value)}
-                                    onKeyPress={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            if (newComment.trim()) {
-                                                handleAddComment();
-                                            }
-                                        }
-                                    }}
-                                />
-                                <button 
-                                    className="post-comment-btn"
-                                    onClick={handleAddComment}
-                                    disabled={!newComment.trim()}
-                                >
-                                    Post
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {selectedPost && (
                 <div className="post-modal-overlay" onClick={handleCloseModal}>
@@ -1518,6 +1575,7 @@ What would you like to know more about?`;
                 </div>
             )}
 
+            {/* Add AI Analysis Modal */}
             {showAiAnalysis && aiAnalysisResult && (
                 <div className="ai-analysis-modal">
                     <div className="ai-analysis-content">
@@ -1584,6 +1642,7 @@ What would you like to know more about?`;
                 </div>
             )}
 
+            {/* Add ToastContainer at the end of the component */}
             <ToastContainer
                 position="top-right"
                 autoClose={3000}
@@ -1597,30 +1656,16 @@ What would you like to know more about?`;
                 theme="dark"
             />
 
-            <button 
-                onClick={() => setChatOpen(!chatOpen)} 
-                className="chatbot-button"
-                aria-label="Toggle chat"
-            >
-                {chatOpen ? <FaTimes /> : <FaRobot />}
-            </button>
-
             {chatOpen && (
                 <div className="chat-interface">
                     <div className="chat-header">
                         <div className="chat-title">
-                            <FaRobot style={{ marginRight: '8px' }} />
                             Retrievio Assistant
                         </div>
                         <div className="chat-actions">
                             <button onClick={clearChat} className="clear-chat" title="Clear chat">
-                                <FaTrash />
                                 Clear
                             </button>
-                            <FaTimes 
-                                onClick={() => setChatOpen(false)} 
-                                style={{ cursor: 'pointer' }} 
-                            />
                         </div>
                     </div>
                     
@@ -1669,14 +1714,6 @@ What would you like to know more about?`;
                     </form>
                 </div>
             )}
-
-            <button 
-                className={`scroll-to-top ${showScrollTop ? 'visible' : ''}`}
-                onClick={scrollToTop}
-                aria-label="Scroll to top"
-            >
-                ↑
-            </button>
         </div>
     );
 };

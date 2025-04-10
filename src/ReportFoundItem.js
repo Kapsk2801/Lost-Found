@@ -36,6 +36,48 @@ const ReportFoundItem = () => {
         }
     };
 
+    // Add a new function for compressing images
+    const compressImage = (file) => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = event => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 800;
+                    const MAX_HEIGHT = 800;
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > height) {
+                        if (width > MAX_WIDTH) {
+                            height *= MAX_WIDTH / width;
+                            width = MAX_WIDTH;
+                        }
+                    } else {
+                        if (height > MAX_HEIGHT) {
+                            width *= MAX_HEIGHT / height;
+                            height = MAX_HEIGHT;
+                        }
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Specifically handle JPEG by setting quality
+                    const quality = file.type === 'image/jpeg' ? 0.8 : 0.9;
+                    const dataUrl = canvas.toDataURL(file.type, quality);
+                    resolve(dataUrl);
+                };
+            };
+        });
+    };
+
+    // Update handleSubmit function to use image compression
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!itemName || !description || !location || !date || !reporterName || !sapId || !course || !contactEmail || !image) {
@@ -54,43 +96,42 @@ const ReportFoundItem = () => {
         setError("");
 
         try {
-            // Convert image to base64 for storage
-            const reader = new FileReader();
-            reader.readAsDataURL(image);
-            reader.onload = async () => {
-                try {
-                    // Save item data to Firestore
-                    await addDoc(collection(db, "items"), {
-                        itemName,
-                        description,
-                        location,
-                        date,
-                        reporterName,
-                        sapId,
-                        course,
-                        contactEmail,
-                        imageData: reader.result,
-                        isLost: false,
-                        timestamp: new Date().toISOString()
-                    });
-
-                    alert("Item reported successfully!");
-                    navigate("/home");
-                } catch (error) {
-                    console.error("Error saving to Firestore:", error);
-                    setError("Failed to save item. Please try again.");
-                } finally {
-                    setUploading(false);
-                }
-            };
-            reader.onerror = (error) => {
-                console.error("Error reading file:", error);
-                setError("Error processing image. Please try again.");
-                setUploading(false);
-            };
+            console.log("Processing image...", image.type); // Debug log to show image type
+            
+            // Compress the image before storing
+            const compressedImageData = await compressImage(image);
+            console.log("Image compressed successfully");
+            
+            // Add console logs for debugging
+            console.log("Saving found item data to Firestore...");
+            
+            // Save item data to Firestore - using the same structure as ReportLostItem but with isLost: false
+            const docRef = await addDoc(collection(db, "items"), {
+                title: itemName,
+                itemName: itemName,
+                description,
+                location,
+                date,
+                reporterName,
+                sapId,
+                course,
+                contactEmail,
+                image: compressedImageData,
+                imageUrl: compressedImageData,
+                imageType: image.type, // Store the image type for reference
+                isLost: false,
+                isFound: true, 
+                status: "found",
+                timestamp: new Date().toISOString()
+            });
+            
+            console.log("Found item data saved successfully with ID:", docRef.id);
+            alert("Item reported successfully!");
+            navigate("/home");
         } catch (error) {
             console.error("Error reporting item:", error);
-            setError("Failed to report item. Please try again.");
+            setError("Failed to save item. Please try again. Error: " + error.message);
+        } finally {
             setUploading(false);
         }
     };
