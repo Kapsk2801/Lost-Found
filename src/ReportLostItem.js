@@ -16,7 +16,7 @@ const ReportLostItem = () => {
     const [contactEmail, setContactEmail] = useState("");
     const [error, setError] = useState("");
     const [uploading, setUploading] = useState(false);
-
+    
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!itemName || !description || !location || !date || !reporterName || !sapId || !course || !contactEmail) {
