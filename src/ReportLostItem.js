@@ -104,6 +104,7 @@ const ReportLostItem = () => {
                         />
                     </div>
 
+
                     <div className="form-section">
                         <h3>Reporter Details</h3>
                         <input

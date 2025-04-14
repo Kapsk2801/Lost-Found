@@ -21,6 +21,7 @@ const ReportFoundItem = () => {
     const fileInputRef = useRef(null);
     const cameraInputRef = useRef(null);
 
+    // Handle image change and preview
     const handleImageChange = (e) => {
         const file = e.target.files[0];
         if (file) {

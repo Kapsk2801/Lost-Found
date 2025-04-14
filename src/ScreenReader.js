@@ -19,6 +19,7 @@ const ScreenReader = ({ item }) => {
         };
     }, []);
 
+    // Handle hover events to start or stop speech synthesis
     const handleHover = (isEntering) => {
         if (!speechSynthesis) return;
         

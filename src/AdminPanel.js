@@ -10,6 +10,7 @@ import './AdminPanel.css';
 import ChatSystem from './components/ChatSystem';
 import { ToastContainer } from 'react-toastify';
 
+// AdminPanel component for managing claims and items
 const AdminPanel = () => {
   const navigate = useNavigate();
   const auth = getAuth();

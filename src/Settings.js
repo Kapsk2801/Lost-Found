@@ -23,6 +23,7 @@ const ChevronIcon = () => (
     </svg>
 );
 
+// Settings Component
 const Settings = () => {
     const navigate = useNavigate();
     const auth = getAuth();

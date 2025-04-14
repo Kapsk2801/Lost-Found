@@ -184,7 +184,7 @@ const Home = () => {
                 if (userProfileDoc.exists()) {
                     const profileData = userProfileDoc.data();
                     setUserProfile(profileData);
-                    // Store profile data in localStorage for persistence
+                    // Store profile data in localStorage for persistent
                     localStorage.setItem('userProfile', JSON.stringify(profileData));
                 } else {
                     // Try to get cached profile data
@@ -542,7 +542,7 @@ const Home = () => {
 
             const currentItemData = itemSnap.data();
             
-            // Check current status
+            // Check current status of the item
             if (currentItemData.claimStatus === 'claimed') {
                 toast.error("This item has already been claimed");
                 return;

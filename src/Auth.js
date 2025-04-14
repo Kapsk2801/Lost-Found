@@ -9,6 +9,8 @@ import {
 import { useNavigate } from "react-router-dom";
 import "./Auth.css";
 
+
+// Auth component for user authentication 
 function Auth() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
